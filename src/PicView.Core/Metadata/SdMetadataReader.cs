@@ -1,3 +1,4 @@
+using ImageMagick;
 using PicView.Core.DebugTools;
 
 namespace PicView.Core.Metadata;
@@ -31,16 +32,73 @@ public static class SdMetadataReader
                     var fromChunks = ReadFromPngChunks(chunks);
                     if (fromChunks is not null)
                     {
+                        fromChunks.Storage = "PNG text chunk";
                         return fromChunks;
                     }
                 }
             }
 
-            return ReadFromText(exifUserComment) ?? ReadFromText(imageComment);
+            var fromExif = ReadFromText(exifUserComment);
+            if (fromExif is not null)
+            {
+                fromExif.Storage = "EXIF UserComment";
+                return fromExif;
+            }
+
+            var fromComment = ReadFromText(imageComment);
+            if (fromComment is not null)
+            {
+                fromComment.Storage = "Image comment";
+            }
+
+            return fromComment;
         }
         catch (Exception e)
         {
             DebugHelper.LogDebug(nameof(SdMetadataReader), nameof(Read), e);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Looks for generation parameters hidden in the pixel data. This decodes the image, so it
+    /// is far more expensive than <see cref="Read"/> and is meant to run only after that has
+    /// come up empty. Returns null when the image carries no hidden payload.
+    /// </summary>
+    public static SdMetadata? ReadStealth(FileInfo? fileInfo, CancellationToken cancellationToken = default)
+    {
+        if (fileInfo is not { Exists: true })
+        {
+            return null;
+        }
+
+        try
+        {
+            using var image = new MagickImage(fileInfo);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var payload = StealthPngInfoReader.Read(image, cancellationToken);
+            if (payload is null)
+            {
+                return null;
+            }
+
+            var metadata = ParseUnknownPayload(payload.Text) ??
+                           SdMetadataParser.ParseA1111(payload.Text);
+
+            metadata.IsHidden = true;
+            metadata.Storage = payload.Compressed
+                ? $"Hidden - stealth pnginfo ({payload.Mode}, compressed)"
+                : $"Hidden - stealth pnginfo ({payload.Mode})";
+            return metadata;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            DebugHelper.LogDebug(nameof(SdMetadataReader), nameof(ReadStealth), e);
             return null;
         }
     }

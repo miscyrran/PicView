@@ -390,6 +390,15 @@
 
                 <StackPanel x:Name="MainContainer">
 
+                    <!--  Hidden-metadata scan in progress  -->
+                    <TextBlock
+                        Margin="15,10"
+                        HorizontalAlignment="Center"
+                        Classes="txt"
+                        FontStyle="Italic"
+                        IsVisible="{CompiledBinding Exif.IsSdStealthScanning.Value, FallbackValue=False}"
+                        Text="Scanning for hidden Stable Diffusion metadata..." />
+
                     <!--  Stable Diffusion  -->
                     <StackPanel x:Name="SdMetadataPanel" IsVisible="{CompiledBinding Exif.IsSdMetadataAvailable.Value, FallbackValue=False}">
                         <StackPanel
@@ -433,6 +442,32 @@
                                 <customControls:CopyButton
                                     Classes="altHover BorderStyle"
                                     CopyText="{CompiledBinding Exif.SdGenerator.Value,
+                                                               Mode=OneWay}"
+                                    IsVisible="{CompiledBinding InfoWindow.IsCopyButtonEnabled.Value}"
+                                    ToolTip.Tip="{CompiledBinding Translation.Copy.Value,
+                                                                  Mode=OneWay}">
+                                    <Path Classes="CopyPath Xl" />
+                                </customControls:CopyButton>
+                            </StackPanel>
+
+                            <!--  Stored in  -->
+                            <StackPanel Margin="10" Orientation="Horizontal">
+                                <TextBlock
+                                    Width="{CompiledBinding InfoWindow.TextWidth}"
+                                    Margin="0,8,2,0"
+                                    Classes="txt"
+                                    Text="Stored in" />
+                                <customControls:FuncTextBox
+                                    x:Name="SdStorageBox"
+                                    Width="{CompiledBinding InfoWindow.TextBoxWidth.Value}"
+                                    Background="{DynamicResource DisabledBackgroundColor}"
+                                    Classes=" TStyle x"
+                                    IsReadOnly="True"
+                                    Text="{CompiledBinding Exif.SdStorage.Value,
+                                                           Mode=OneWay}" />
+                                <customControls:CopyButton
+                                    Classes="altHover BorderStyle"
+                                    CopyText="{CompiledBinding Exif.SdStorage.Value,
                                                                Mode=OneWay}"
                                     IsVisible="{CompiledBinding InfoWindow.IsCopyButtonEnabled.Value}"
                                     ToolTip.Tip="{CompiledBinding Translation.Copy.Value,

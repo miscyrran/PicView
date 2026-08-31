@@ -321,7 +321,15 @@ public class ExifViewModel : IDisposable
 
     /// <summary>The unparsed payload, shown so nothing is lost when parsing falls short.</summary>
     public BindableReactiveProperty<string?> SdRaw { get; } = new();
-    
+
+    /// <summary>Where the parameters came from, e.g. a PNG text chunk or hidden in the pixels.</summary>
+    public BindableReactiveProperty<string?> SdStorage { get; } = new();
+
+    /// <summary>True while the pixel data is being scanned for hidden parameters.</summary>
+    public BindableReactiveProperty<bool> IsSdStealthScanning { get; } = new();
+
+    private CancellationTokenSource? _stealthCts;
+
     public BindableReactiveProperty<MagickFormat?> ImageFormat { get; } = new();
 
     public void Dispose()
@@ -366,6 +374,8 @@ public class ExifViewModel : IDisposable
             SdNegativePrompt,
             SdSettings,
             SdRaw,
+            SdStorage,
+            IsSdStealthScanning,
             Latitude,
             LensMaker,
             LensModel,
@@ -833,23 +843,118 @@ public class ExifViewModel : IDisposable
     /// <summary>
     /// Fills the Stable Diffusion fields from the image's generation parameters, and clears
     /// them when it has none.
+    /// <para>
+    /// When no parameters are stored in metadata, a scan for stealth pnginfo is started in the
+    /// background. That one decodes the pixels, so it must not hold up the rest of the window;
+    /// it is cancelled as soon as another image is shown.
+    /// </para>
     /// </summary>
     private void UpdateSdMetadataValues(FileInfo? fileInfo, string? userComment, string? imageComment)
     {
+        CancelStealthScan();
+
         var sdMetadata = SdMetadataReader.Read(fileInfo, userComment, imageComment);
 
-        if (sdMetadata is null)
+        if (sdMetadata is not null)
         {
-            ClearSdMetadataValues();
+            ApplySdMetadata(sdMetadata);
             return;
         }
 
+        ClearSdMetadataValues();
+        StartStealthScan(fileInfo);
+    }
+
+    private void ApplySdMetadata(SdMetadata sdMetadata)
+    {
         SdGenerator.Value = sdMetadata.Generator;
         SdPrompt.Value = sdMetadata.Prompt ?? string.Empty;
         SdNegativePrompt.Value = sdMetadata.NegativePrompt ?? string.Empty;
         SdSettings.Value = sdMetadata.Settings ?? string.Empty;
         SdRaw.Value = sdMetadata.Raw;
+        SdStorage.Value = sdMetadata.Storage ?? string.Empty;
         IsSdMetadataAvailable.Value = true;
+    }
+
+    /// <summary>
+    /// Scans the pixel data for hidden parameters, off the calling thread. Only images that
+    /// could plausibly carry them are scanned, and only while the info window is showing this
+    /// image -- <see cref="UpdateSdMetadataValues"/> is reached only from the info window.
+    /// </summary>
+    private void StartStealthScan(FileInfo? fileInfo)
+    {
+        if (fileInfo is not { Exists: true } || !IsStealthCandidate(fileInfo))
+        {
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _stealthCts = cts;
+        var token = cts.Token;
+
+        IsSdStealthScanning.Value = true;
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var hidden = SdMetadataReader.ReadStealth(fileInfo, token);
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                if (hidden is not null)
+                {
+                    ApplySdMetadata(hidden);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Another image was opened; its own scan owns the fields now.
+            }
+            catch (Exception e)
+            {
+                DebugHelper.LogDebug(nameof(ExifViewModel), nameof(StartStealthScan), e);
+            }
+            finally
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    IsSdStealthScanning.Value = false;
+                }
+
+                cts.Dispose();
+            }
+        }, token);
+    }
+
+    /// <summary>
+    /// Stealth pnginfo only survives in lossless formats -- a JPEG re-encode destroys the low
+    /// bits it lives in -- so scanning anything else is wasted work.
+    /// </summary>
+    private static bool IsStealthCandidate(FileInfo fileInfo) =>
+        fileInfo.Extension.Equals(".png", StringComparison.OrdinalIgnoreCase) ||
+        fileInfo.Extension.Equals(".webp", StringComparison.OrdinalIgnoreCase);
+
+    private void CancelStealthScan()
+    {
+        var cts = Interlocked.Exchange(ref _stealthCts, null);
+        if (cts is null)
+        {
+            return;
+        }
+
+        try
+        {
+            cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The scan finished and disposed it first.
+        }
+
+        IsSdStealthScanning.Value = false;
     }
 
     private void ClearSdMetadataValues()
@@ -859,7 +964,8 @@ public class ExifViewModel : IDisposable
             SdPrompt.Value =
                 SdNegativePrompt.Value =
                     SdSettings.Value =
-                        SdRaw.Value = string.Empty;
+                        SdStorage.Value =
+                            SdRaw.Value = string.Empty;
     }
 
     public void OpenGoogleMaps(Unit unit) => ProcessHelper.OpenLink(GoogleLink.CurrentValue);

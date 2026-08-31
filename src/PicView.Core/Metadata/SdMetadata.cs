@@ -19,4 +19,13 @@ public sealed class SdMetadata
 
     /// <summary>The unmodified payload, so nothing is lost when parsing falls short.</summary>
     public required string Raw { get; init; }
+
+    /// <summary>
+    /// Where the parameters were stored, e.g. "PNG text chunk" or "Hidden - stealth pnginfo".
+    /// Stamped by <see cref="SdMetadataReader"/> once it knows which source succeeded.
+    /// </summary>
+    public string? Storage { get; set; }
+
+    /// <summary>True when the parameters were recovered from pixel data rather than metadata.</summary>
+    public bool IsHidden { get; set; }
 }
