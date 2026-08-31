@@ -5,6 +5,7 @@ using ImageMagick;
 using PicView.Core.DebugTools;
 using PicView.Core.Exif;
 using PicView.Core.Localization;
+using PicView.Core.Metadata;
 using PicView.Core.Models;
 using PicView.Core.ProcessHandling;
 using PicView.Core.Sizing;
@@ -305,6 +306,21 @@ public class ExifViewModel : IDisposable
     public BindableReactiveProperty<string?> LensMaker { get; } = new();
 
     public BindableReactiveProperty<bool> IsExifAvailable { get; } = new();
+
+    /// <summary>True when the image carries Stable Diffusion generation parameters.</summary>
+    public BindableReactiveProperty<bool> IsSdMetadataAvailable { get; } = new();
+
+    /// <summary>The tool that generated the image, e.g. "Automatic1111" or "ComfyUI".</summary>
+    public BindableReactiveProperty<string?> SdGenerator { get; } = new();
+
+    public BindableReactiveProperty<string?> SdPrompt { get; } = new();
+
+    public BindableReactiveProperty<string?> SdNegativePrompt { get; } = new();
+
+    public BindableReactiveProperty<string?> SdSettings { get; } = new();
+
+    /// <summary>The unparsed payload, shown so nothing is lost when parsing falls short.</summary>
+    public BindableReactiveProperty<string?> SdRaw { get; } = new();
     
     public BindableReactiveProperty<MagickFormat?> ImageFormat { get; } = new();
 
@@ -344,6 +360,12 @@ public class ExifViewModel : IDisposable
             GoogleLink,
             ISOSpeed,
             IsExifAvailable,
+            IsSdMetadataAvailable,
+            SdGenerator,
+            SdPrompt,
+            SdNegativePrompt,
+            SdSettings,
+            SdRaw,
             Latitude,
             LensMaker,
             LensModel,
@@ -424,6 +446,7 @@ public class ExifViewModel : IDisposable
         {
             if (fileInfo is null || !fileInfo.Exists)
             {
+                ClearSdMetadataValues();
                 return;
             }
 
@@ -649,6 +672,8 @@ public class ExifViewModel : IDisposable
             // profile byte order on first access, which legacy Unicode decoding needs.
             Comment.Value = ExifReader.GetUserComment(profile);
 
+            UpdateSdMetadataValues(fileInfo, Comment.CurrentValue, magick.GetAttribute("comment"));
+
             if (profile != null)
             {
                 DpiY.Value = profile.GetValue(ExifTag.YResolution)?.Value.ToDouble() ?? magick.Density.X;
@@ -805,6 +830,38 @@ public class ExifViewModel : IDisposable
         }
     }
 
+    /// <summary>
+    /// Fills the Stable Diffusion fields from the image's generation parameters, and clears
+    /// them when it has none.
+    /// </summary>
+    private void UpdateSdMetadataValues(FileInfo? fileInfo, string? userComment, string? imageComment)
+    {
+        var sdMetadata = SdMetadataReader.Read(fileInfo, userComment, imageComment);
+
+        if (sdMetadata is null)
+        {
+            ClearSdMetadataValues();
+            return;
+        }
+
+        SdGenerator.Value = sdMetadata.Generator;
+        SdPrompt.Value = sdMetadata.Prompt ?? string.Empty;
+        SdNegativePrompt.Value = sdMetadata.NegativePrompt ?? string.Empty;
+        SdSettings.Value = sdMetadata.Settings ?? string.Empty;
+        SdRaw.Value = sdMetadata.Raw;
+        IsSdMetadataAvailable.Value = true;
+    }
+
+    private void ClearSdMetadataValues()
+    {
+        IsSdMetadataAvailable.Value = false;
+        SdGenerator.Value =
+            SdPrompt.Value =
+                SdNegativePrompt.Value =
+                    SdSettings.Value =
+                        SdRaw.Value = string.Empty;
+    }
+
     public void OpenGoogleMaps(Unit unit) => ProcessHelper.OpenLink(GoogleLink.CurrentValue);
     public void OpenBingMaps(Unit unit) => ProcessHelper.OpenLink(BingLink.CurrentValue);
 
@@ -845,6 +902,7 @@ public class ExifViewModel : IDisposable
         await ExifWriter.RemoveImageMetaData(fileInfo).ConfigureAwait(false);
         
         // Remove UI displayed fields
+        ClearSdMetadataValues();
         ExifRating.Value = 0;
         DateTaken.Value = null;
         Copyright.Value = string.Empty;
