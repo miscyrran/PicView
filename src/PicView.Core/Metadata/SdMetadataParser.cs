@@ -358,16 +358,10 @@ internal static class SdMetadataParser
                 using var document = JsonDocument.Parse(commentJson);
                 var root = document.RootElement;
 
-                if (prompt is null && root.TryGetProperty("prompt", out var promptElement) &&
-                    promptElement.ValueKind == JsonValueKind.String)
-                {
-                    prompt = NullIfEmpty(promptElement.GetString());
-                }
-
-                if (root.TryGetProperty("uc", out var uc) && uc.ValueKind == JsonValueKind.String)
-                {
-                    negative = NullIfEmpty(uc.GetString());
-                }
+                // V4+ keeps the base prompt and each character's prompt separately; the Description
+                // chunk and "prompt" only hold the base, so the V4 captions take precedence.
+                prompt = JoinV4Caption(root, "v4_prompt") ?? prompt ?? GetString(root, "prompt");
+                negative = JoinV4Caption(root, "v4_negative_prompt") ?? GetString(root, "uc");
 
                 AppendSetting(settings, root, "steps", "Steps");
                 AppendSetting(settings, root, "scale", "CFG scale");
@@ -396,6 +390,41 @@ internal static class SdMetadataParser
             DebugHelper.LogDebug(nameof(SdMetadataParser), nameof(ParseNovelAi), e);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Joins a NovelAI V4 caption, <c>{ "caption": { "base_caption": ..., "char_captions":
+    /// [{ "char_caption": ... }] } }</c>, into one prompt with the base and each character on its own line.
+    /// </summary>
+    private static string? JoinV4Caption(JsonElement root, string name)
+    {
+        if (!root.TryGetProperty(name, out var v4) || v4.ValueKind != JsonValueKind.Object ||
+            !v4.TryGetProperty("caption", out var caption) || caption.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var parts = new List<string>();
+        var baseCaption = GetString(caption, "base_caption");
+        if (baseCaption is not null)
+        {
+            parts.Add(baseCaption.Trim());
+        }
+
+        if (caption.TryGetProperty("char_captions", out var characters) &&
+            characters.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var character in characters.EnumerateArray())
+            {
+                var text = character.ValueKind == JsonValueKind.Object ? GetString(character, "char_caption") : null;
+                if (text is not null)
+                {
+                    parts.Add(text.Trim());
+                }
+            }
+        }
+
+        return parts.Count == 0 ? null : string.Join('\n', parts);
     }
 
     /// <summary>Parses InvokeAI's flat metadata object.</summary>

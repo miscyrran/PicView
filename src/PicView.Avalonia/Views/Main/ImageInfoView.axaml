@@ -477,110 +477,199 @@
                             </StackPanel>
 
                             <!--  Prompt  -->
-                            <StackPanel Margin="10" IsVisible="{CompiledBinding Exif.SdPrompt.Value, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Orientation="Horizontal">
-                                <TextBlock
-                                    Width="{CompiledBinding InfoWindow.TextWidth}"
-                                    Margin="0,8,2,0"
-                                    Classes="txt"
-                                    Text="Prompt" />
+                            <StackPanel
+                                Width="{CompiledBinding InfoWindow.SdRowWidth.Value}"
+                                Margin="10"
+                                IsVisible="{CompiledBinding Exif.SdPrompt.Value, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <DockPanel Margin="0,0,0,4">
+                                    <Button
+                                        Padding="0"
+                                        HorizontalContentAlignment="Center"
+                                        VerticalContentAlignment="Center"
+                                        Background="Transparent"
+                                        Classes="altHover BorderStyle"
+                                        Click="ExpandSdText_OnClick"
+                                        DockPanel.Dock="Right"
+                                        Tag="Prompt"
+                                        ToolTip.Tip="Expand">
+                                        <Path
+                                            Width="14"
+                                            Height="14"
+                                            Data="M3,3 H10 V5.5 H7.3 L11,9.2 L9.2,11 L5.5,7.3 V10 H3 Z M21,21 H14 V18.5 H16.7 L13,14.8 L14.8,13 L18.5,16.7 V14 H21 Z"
+                                            Fill="{DynamicResource MainTextColor}"
+                                            Stretch="Uniform" />
+                                    </Button>
+                                    <customControls:CopyButton
+                                        Background="Transparent"
+                                        Classes="altHover BorderStyle"
+                                        CopyText="{CompiledBinding Exif.SdPrompt.Value,
+                                                                   Mode=OneWay}"
+                                        DockPanel.Dock="Right"
+                                        ToolTip.Tip="{CompiledBinding Translation.Copy.Value,
+                                                                      Mode=OneWay}">
+                                        <Path Classes="CopyPath Xl" />
+                                    </customControls:CopyButton>
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        Classes="txt"
+                                        Text="Prompt" />
+                                </DockPanel>
                                 <customControls:FuncTextBox
                                     x:Name="SdPromptBox"
-                                    Width="{CompiledBinding InfoWindow.TextBoxXxlWidth.Value}"
-                                    MaxHeight="250"
+                                    MaxHeight="450"
+                                    Margin="0"
                                     Background="{DynamicResource DisabledBackgroundColor}"
                                     Classes=" TStyle x"
                                     IsReadOnly="True"
                                     Text="{CompiledBinding Exif.SdPrompt.Value,
                                                            Mode=OneWay}" />
-                                <customControls:CopyButton
-                                    Classes="altHover BorderStyle"
-                                    CopyText="{CompiledBinding Exif.SdPrompt.Value,
-                                                               Mode=OneWay}"
-                                    IsVisible="{CompiledBinding InfoWindow.IsCopyButtonEnabled.Value}"
-                                    ToolTip.Tip="{CompiledBinding Translation.Copy.Value,
-                                                                  Mode=OneWay}">
-                                    <Path Classes="CopyPath Xl" />
-                                </customControls:CopyButton>
                             </StackPanel>
 
                             <!--  Negative prompt  -->
-                            <StackPanel Margin="10" IsVisible="{CompiledBinding Exif.SdNegativePrompt.Value, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Orientation="Horizontal">
-                                <TextBlock
-                                    Width="{CompiledBinding InfoWindow.TextWidth}"
-                                    Margin="0,8,2,0"
-                                    Classes="txt"
-                                    Text="Negative prompt" />
+                            <StackPanel
+                                Width="{CompiledBinding InfoWindow.SdRowWidth.Value}"
+                                Margin="10"
+                                IsVisible="{CompiledBinding Exif.SdNegativePrompt.Value, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <DockPanel Margin="0,0,0,4">
+                                    <Button
+                                        Padding="0"
+                                        HorizontalContentAlignment="Center"
+                                        VerticalContentAlignment="Center"
+                                        Background="Transparent"
+                                        Classes="altHover BorderStyle"
+                                        Click="ExpandSdText_OnClick"
+                                        DockPanel.Dock="Right"
+                                        Tag="Negative prompt"
+                                        ToolTip.Tip="Expand">
+                                        <Path
+                                            Width="14"
+                                            Height="14"
+                                            Data="M3,3 H10 V5.5 H7.3 L11,9.2 L9.2,11 L5.5,7.3 V10 H3 Z M21,21 H14 V18.5 H16.7 L13,14.8 L14.8,13 L18.5,16.7 V14 H21 Z"
+                                            Fill="{DynamicResource MainTextColor}"
+                                            Stretch="Uniform" />
+                                    </Button>
+                                    <customControls:CopyButton
+                                        Background="Transparent"
+                                        Classes="altHover BorderStyle"
+                                        CopyText="{CompiledBinding Exif.SdNegativePrompt.Value,
+                                                                   Mode=OneWay}"
+                                        DockPanel.Dock="Right"
+                                        ToolTip.Tip="{CompiledBinding Translation.Copy.Value,
+                                                                      Mode=OneWay}">
+                                        <Path Classes="CopyPath Xl" />
+                                    </customControls:CopyButton>
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        Classes="txt"
+                                        Text="Negative prompt" />
+                                </DockPanel>
                                 <customControls:FuncTextBox
                                     x:Name="SdNegativePromptBox"
-                                    Width="{CompiledBinding InfoWindow.TextBoxXxlWidth.Value}"
-                                    MaxHeight="250"
+                                    MaxHeight="450"
+                                    Margin="0"
                                     Background="{DynamicResource DisabledBackgroundColor}"
                                     Classes=" TStyle x"
                                     IsReadOnly="True"
                                     Text="{CompiledBinding Exif.SdNegativePrompt.Value,
                                                            Mode=OneWay}" />
-                                <customControls:CopyButton
-                                    Classes="altHover BorderStyle"
-                                    CopyText="{CompiledBinding Exif.SdNegativePrompt.Value,
-                                                               Mode=OneWay}"
-                                    IsVisible="{CompiledBinding InfoWindow.IsCopyButtonEnabled.Value}"
-                                    ToolTip.Tip="{CompiledBinding Translation.Copy.Value,
-                                                                  Mode=OneWay}">
-                                    <Path Classes="CopyPath Xl" />
-                                </customControls:CopyButton>
                             </StackPanel>
 
                             <!--  Generation settings  -->
-                            <StackPanel Margin="10" IsVisible="{CompiledBinding Exif.SdSettings.Value, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Orientation="Horizontal">
-                                <TextBlock
-                                    Width="{CompiledBinding InfoWindow.TextWidth}"
-                                    Margin="0,8,2,0"
-                                    Classes="txt"
-                                    Text="Settings" />
+                            <StackPanel
+                                Width="{CompiledBinding InfoWindow.SdRowWidth.Value}"
+                                Margin="10"
+                                IsVisible="{CompiledBinding Exif.SdSettings.Value, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <DockPanel Margin="0,0,0,4">
+                                    <Button
+                                        Padding="0"
+                                        HorizontalContentAlignment="Center"
+                                        VerticalContentAlignment="Center"
+                                        Background="Transparent"
+                                        Classes="altHover BorderStyle"
+                                        Click="ExpandSdText_OnClick"
+                                        DockPanel.Dock="Right"
+                                        Tag="Settings"
+                                        ToolTip.Tip="Expand">
+                                        <Path
+                                            Width="14"
+                                            Height="14"
+                                            Data="M3,3 H10 V5.5 H7.3 L11,9.2 L9.2,11 L5.5,7.3 V10 H3 Z M21,21 H14 V18.5 H16.7 L13,14.8 L14.8,13 L18.5,16.7 V14 H21 Z"
+                                            Fill="{DynamicResource MainTextColor}"
+                                            Stretch="Uniform" />
+                                    </Button>
+                                    <customControls:CopyButton
+                                        Background="Transparent"
+                                        Classes="altHover BorderStyle"
+                                        CopyText="{CompiledBinding Exif.SdSettings.Value,
+                                                                   Mode=OneWay}"
+                                        DockPanel.Dock="Right"
+                                        ToolTip.Tip="{CompiledBinding Translation.Copy.Value,
+                                                                      Mode=OneWay}">
+                                        <Path Classes="CopyPath Xl" />
+                                    </customControls:CopyButton>
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        Classes="txt"
+                                        Text="Settings" />
+                                </DockPanel>
                                 <customControls:FuncTextBox
                                     x:Name="SdSettingsBox"
-                                    Width="{CompiledBinding InfoWindow.TextBoxXxlWidth.Value}"
-                                    MaxHeight="150"
+                                    MaxHeight="250"
+                                    Margin="0"
                                     Background="{DynamicResource DisabledBackgroundColor}"
                                     Classes=" TStyle x"
                                     IsReadOnly="True"
                                     Text="{CompiledBinding Exif.SdSettings.Value,
                                                            Mode=OneWay}" />
-                                <customControls:CopyButton
-                                    Classes="altHover BorderStyle"
-                                    CopyText="{CompiledBinding Exif.SdSettings.Value,
-                                                               Mode=OneWay}"
-                                    IsVisible="{CompiledBinding InfoWindow.IsCopyButtonEnabled.Value}"
-                                    ToolTip.Tip="{CompiledBinding Translation.Copy.Value,
-                                                                  Mode=OneWay}">
-                                    <Path Classes="CopyPath Xl" />
-                                </customControls:CopyButton>
                             </StackPanel>
 
                             <!--  Raw metadata  -->
-                            <StackPanel Margin="10" Orientation="Horizontal">
-                                <TextBlock
-                                    Width="{CompiledBinding InfoWindow.TextWidth}"
-                                    Margin="0,8,2,0"
-                                    Classes="txt"
-                                    Text="Raw metadata" />
+                            <StackPanel
+                                Width="{CompiledBinding InfoWindow.SdRowWidth.Value}"
+                                Margin="10"
+                                IsVisible="{CompiledBinding Exif.SdRaw.Value, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <DockPanel Margin="0,0,0,4">
+                                    <Button
+                                        Padding="0"
+                                        HorizontalContentAlignment="Center"
+                                        VerticalContentAlignment="Center"
+                                        Background="Transparent"
+                                        Classes="altHover BorderStyle"
+                                        Click="ExpandSdText_OnClick"
+                                        DockPanel.Dock="Right"
+                                        Tag="Raw metadata"
+                                        ToolTip.Tip="Expand">
+                                        <Path
+                                            Width="14"
+                                            Height="14"
+                                            Data="M3,3 H10 V5.5 H7.3 L11,9.2 L9.2,11 L5.5,7.3 V10 H3 Z M21,21 H14 V18.5 H16.7 L13,14.8 L14.8,13 L18.5,16.7 V14 H21 Z"
+                                            Fill="{DynamicResource MainTextColor}"
+                                            Stretch="Uniform" />
+                                    </Button>
+                                    <customControls:CopyButton
+                                        Background="Transparent"
+                                        Classes="altHover BorderStyle"
+                                        CopyText="{CompiledBinding Exif.SdRaw.Value,
+                                                                   Mode=OneWay}"
+                                        DockPanel.Dock="Right"
+                                        ToolTip.Tip="{CompiledBinding Translation.Copy.Value,
+                                                                      Mode=OneWay}">
+                                        <Path Classes="CopyPath Xl" />
+                                    </customControls:CopyButton>
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        Classes="txt"
+                                        Text="Raw metadata" />
+                                </DockPanel>
                                 <customControls:FuncTextBox
                                     x:Name="SdRawBox"
-                                    Width="{CompiledBinding InfoWindow.TextBoxXxlWidth.Value}"
+                                    MaxHeight="300"
+                                    Margin="0"
                                     Background="{DynamicResource DisabledBackgroundColor}"
                                     Classes=" TStyle x"
                                     IsReadOnly="True"
                                     Text="{CompiledBinding Exif.SdRaw.Value,
                                                            Mode=OneWay}" />
-                                <customControls:CopyButton
-                                    Classes="altHover BorderStyle"
-                                    CopyText="{CompiledBinding Exif.SdRaw.Value,
-                                                               Mode=OneWay}"
-                                    IsVisible="{CompiledBinding InfoWindow.IsCopyButtonEnabled.Value}"
-                                    ToolTip.Tip="{CompiledBinding Translation.Copy.Value,
-                                                                  Mode=OneWay}">
-                                    <Path Classes="CopyPath Xl" />
-                                </customControls:CopyButton>
                             </StackPanel>
                         </WrapPanel>
                     </StackPanel>
@@ -722,7 +811,7 @@
                         </StackPanel>
 
                         <!--  Size Mp  -->
-                        <StackPanel Margin="15,10" Orientation="Horizontal">
+                        <StackPanel IsVisible="{CompiledBinding !Exif.IsSdMetadataAvailable.Value, FallbackValue=True}" Margin="15,10" Orientation="Horizontal">
                             <TextBlock
                                 Width="{CompiledBinding InfoWindow.TextWidth,
                                                         FallbackValue=''}"
@@ -751,7 +840,7 @@
                         </StackPanel>
 
                         <!--  Resolution  -->
-                        <StackPanel Margin="15,10" Orientation="Horizontal">
+                        <StackPanel IsVisible="{CompiledBinding !Exif.IsSdMetadataAvailable.Value, FallbackValue=True}" Margin="15,10" Orientation="Horizontal">
                             <TextBlock
                                 x:Name="ResolutionTextBlock"
                                 Width="{CompiledBinding InfoWindow.TextWidth}"
@@ -778,7 +867,7 @@
                         </StackPanel>
 
                         <!--  Print Size Centimeters  -->
-                        <StackPanel Margin="15,10" Orientation="Horizontal">
+                        <StackPanel IsVisible="{CompiledBinding !Exif.IsSdMetadataAvailable.Value, FallbackValue=True}" Margin="15,10" Orientation="Horizontal">
                             <TextBlock
                                 Width="{CompiledBinding InfoWindow.TextWidth}"
                                 Margin="0,8,0,0"
@@ -805,7 +894,7 @@
                         </StackPanel>
 
                         <!--  Print Size Inches  -->
-                        <StackPanel Margin="15,10" Orientation="Horizontal">
+                        <StackPanel IsVisible="{CompiledBinding !Exif.IsSdMetadataAvailable.Value, FallbackValue=True}" Margin="15,10" Orientation="Horizontal">
                             <TextBlock
                                 Width="{CompiledBinding InfoWindow.TextWidth}"
                                 Margin="0,8,0,0"
@@ -1106,7 +1195,7 @@
                         <WrapPanel Margin="5,10,0,0" HorizontalAlignment="Center">
 
                             <!--  Date taken  -->
-                            <StackPanel Margin="10" Orientation="Horizontal">
+                            <StackPanel IsVisible="{CompiledBinding !Exif.IsSdMetadataAvailable.Value, FallbackValue=True}" Margin="10" Orientation="Horizontal">
                                 <TextBlock
                                     Width="{CompiledBinding InfoWindow.TextWidth,
                                                             FallbackValue=0}"
@@ -1137,7 +1226,7 @@
                             </StackPanel>
 
                             <!--  Authors  -->
-                            <StackPanel Margin="10" Orientation="Horizontal">
+                            <StackPanel IsVisible="{CompiledBinding !Exif.IsSdMetadataAvailable.Value, FallbackValue=True}" Margin="10" Orientation="Horizontal">
                                 <TextBlock
                                     Width="{CompiledBinding InfoWindow.TextWidth}"
                                     Margin="0,8,2,0"
@@ -1164,7 +1253,7 @@
                             </StackPanel>
 
                             <!--  Copyright  -->
-                            <StackPanel Margin="10" Orientation="Horizontal">
+                            <StackPanel IsVisible="{CompiledBinding !Exif.IsSdMetadataAvailable.Value, FallbackValue=True}" Margin="10" Orientation="Horizontal">
                                 <TextBlock
                                     Width="{CompiledBinding InfoWindow.TextWidth}"
                                     Margin="0,8,2,0"
@@ -1302,7 +1391,7 @@
                     </StackPanel>
 
                     <!--  Gps  -->
-                    <StackPanel IsEnabled="{CompiledBinding Exif.IsExifAvailable.Value}">
+                    <StackPanel IsVisible="{CompiledBinding !Exif.IsSdMetadataAvailable.Value, FallbackValue=True}" IsEnabled="{CompiledBinding Exif.IsExifAvailable.Value}">
                         <StackPanel
                             Height="20"
                             Margin="15,20"
@@ -1447,7 +1536,7 @@
                     </StackPanel>
 
                     <!--  Color  -->
-                    <StackPanel IsEnabled="{CompiledBinding Exif.IsExifAvailable.Value}">
+                    <StackPanel IsVisible="{CompiledBinding !Exif.IsSdMetadataAvailable.Value, FallbackValue=True}" IsEnabled="{CompiledBinding Exif.IsExifAvailable.Value}">
                         <StackPanel
                             Height="20"
                             Margin="15,20"
@@ -1592,7 +1681,7 @@
                     </StackPanel>
 
                     <!--  Camera info  -->
-                    <StackPanel IsEnabled="{CompiledBinding Exif.IsExifAvailable.Value}">
+                    <StackPanel IsVisible="{CompiledBinding !Exif.IsSdMetadataAvailable.Value, FallbackValue=True}" IsEnabled="{CompiledBinding Exif.IsExifAvailable.Value}">
                         <StackPanel
                             Height="20"
                             Margin="15,20"
@@ -2278,5 +2367,60 @@
                 </StackPanel>
             </Panel>
         </customControls:AutoScrollViewer>
+        <!--  Expanded Stable Diffusion field; click the backdrop, the X or press Esc to close  -->
+        <Border
+            x:Name="SdExpandOverlay"
+            Background="#99000000"
+            IsVisible="False"
+            PointerPressed="SdExpandOverlay_OnPointerPressed">
+            <Border
+                Margin="12"
+                Padding="8"
+                Background="{DynamicResource SecondaryBackgroundColor}"
+                BorderBrush="{DynamicResource MainBorderColor}"
+                BorderThickness="1"
+                CornerRadius="4">
+                <DockPanel>
+                    <DockPanel Margin="0,0,0,6" DockPanel.Dock="Top">
+                        <Button
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Background="Transparent"
+                            Classes="altHover BorderStyle"
+                            Click="SdExpandClose_OnClick"
+                            DockPanel.Dock="Right"
+                            ToolTip.Tip="Close (Esc)">
+                            <Path Classes="ClosePath" Width="12" Height="12" />
+                        </Button>
+                        <customControls:CopyButton
+                            x:Name="SdExpandCopyButton"
+                            Background="Transparent"
+                            Classes="altHover BorderStyle"
+                            DockPanel.Dock="Right"
+                            ToolTip.Tip="{CompiledBinding Translation.Copy.Value,
+                                                          Mode=OneWay}">
+                            <Path Classes="CopyPath Xl" />
+                        </customControls:CopyButton>
+                        <TextBlock
+                            x:Name="SdExpandTitle"
+                            VerticalAlignment="Center"
+                            Classes="txt"
+                            FontSize="14" />
+                    </DockPanel>
+                    <customControls:FuncTextBox
+                        x:Name="SdExpandText"
+                        Margin="0"
+                        VerticalContentAlignment="Top"
+                        AcceptsReturn="True"
+                        Background="{DynamicResource DisabledBackgroundColor}"
+                        Classes="TStyle"
+                        FontSize="14"
+                        IsReadOnly="True"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        TextWrapping="Wrap" />
+                </DockPanel>
+            </Border>
+        </Border>
     </Panel>
 </UserControl>

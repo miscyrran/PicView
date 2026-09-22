@@ -100,6 +100,14 @@ public class FuncTextBox : TextBox
             return;
         }
 
+        if (IsReadOnly)
+        {
+            // Read-only boxes are for copying: let the click place the caret so a drag
+            // selects from where it started, instead of from the end of the text.
+            _initialFocus = false;
+            return;
+        }
+
         // When clicking into the textbox and it didn't have focus before
         SelectAll();
         CaretIndex = Text?.Length ?? 0;

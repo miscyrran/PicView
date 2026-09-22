@@ -20,6 +20,12 @@ public class ImageInfoWindowViewModel : IDisposable
     public BindableReactiveProperty<double> TextBoxXxlWidth { get; } = new(630);
     public BindableReactiveProperty<double> HalfLineWidth { get; } = new(395);
 
+    /// <summary>
+    /// Full width for the Stable Diffusion rows, whose label and buttons sit above the text box so
+    /// the buttons stay visible however narrow the window is.
+    /// </summary>
+    public BindableReactiveProperty<double> SdRowWidth { get; } = new(760);
+
     public BindableReactiveProperty<bool> IsCopyButtonEnabled { get; } = new();
     public BindableReactiveProperty<bool> IsExtraButtonsEnabled { get; } = new();
     
@@ -71,6 +77,9 @@ public class ImageInfoWindowViewModel : IDisposable
                 break;
         }
 
+        // Row margin (10 each side), wrap panel and parent margins, plus the scroll bar.
+        SdRowWidth.Value = Math.Max(150, width - (scrollBarThickness + 40));
+
         if (width >= thirdBreakPoint)
         {
             HalfLineWidth.Value = width / 2 - (scrollBarThickness + padding + 15);
@@ -90,6 +99,7 @@ public class ImageInfoWindowViewModel : IDisposable
             TextBoxXlWidth,
             TextBoxXxlWidth,
             HalfLineWidth,
+            SdRowWidth,
             IsCopyButtonEnabled,
             IsExtraButtonsEnabled,
             IsLoading);

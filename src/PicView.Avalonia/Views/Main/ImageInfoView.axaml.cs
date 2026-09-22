@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
@@ -23,6 +23,8 @@ public partial class ImageInfoView : UserControl
     public ImageInfoView()
     {
         InitializeComponent();
+        SdExpandOverlay.AddHandler(KeyDownEvent, SdExpandOverlay_OnKey);
+        SdExpandOverlay.AddHandler(KeyUpEvent, SdExpandOverlay_OnKey);
         Loaded += (_, _) =>
         {
             if (DataContext is not MainWindowViewModel vm)
@@ -323,6 +325,77 @@ public partial class ImageInfoView : UserControl
     {
         base.OnDetachedFromVisualTree(e);
         _disposables.Dispose();
+    }
+
+    /// <summary>
+    /// Shows a Stable Diffusion field in an overlay covering the info view, for prompts too long
+    /// to read inline. The button's Tag names the field; clicking it again closes the overlay.
+    /// </summary>
+    private void ExpandSdText_OnClick(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is not Control { Tag: string title } || DataContext is not MainWindowViewModel vm)
+        {
+            return;
+        }
+
+        if (SdExpandOverlay.IsVisible)
+        {
+            CloseSdExpandOverlay();
+            return;
+        }
+
+        var text = title switch
+        {
+            "Prompt" => vm.Exif.SdPrompt.CurrentValue,
+            "Negative prompt" => vm.Exif.SdNegativePrompt.CurrentValue,
+            "Settings" => vm.Exif.SdSettings.CurrentValue,
+            _ => vm.Exif.SdRaw.CurrentValue
+        };
+
+        SdExpandTitle.Text = title;
+        SdExpandText.Text = text;
+        SdExpandCopyButton.CopyText = text;
+        SdExpandOverlay.IsVisible = true;
+        SdExpandText.CaretIndex = 0;
+        SdExpandText.Focus();
+    }
+
+    private void SdExpandClose_OnClick(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e) =>
+        CloseSdExpandOverlay();
+
+    private void SdExpandOverlay_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        // Only a click on the dimmed backdrop closes it, not one inside the card.
+        if (ReferenceEquals(e.Source, SdExpandOverlay))
+        {
+            CloseSdExpandOverlay();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Esc closes the overlay rather than the info window. The window closes on key *up*, so the
+    /// overlay must close on key up as well and mark it handled, or the same press closes both.
+    /// </summary>
+    private void SdExpandOverlay_OnKey(object? sender, KeyEventArgs e)
+    {
+        if (e.Key is not Key.Escape || !SdExpandOverlay.IsVisible)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (e.RoutedEvent == KeyUpEvent)
+        {
+            CloseSdExpandOverlay();
+        }
+    }
+
+    private void CloseSdExpandOverlay()
+    {
+        SdExpandOverlay.IsVisible = false;
+        SdExpandText.Text = null;
+        ScrollViewer.Focus();
     }
 
     private async Task AddExifPropertyAsync<T>(Func<FileInfo?, T, Task<bool>> addAction, T value)

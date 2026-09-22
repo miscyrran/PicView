@@ -106,6 +106,43 @@ public class SdMetadataTests
     }
 
     [Fact]
+    public void ParseNovelAi_V4_JoinsBaseAndCharacterCaptionsOnSeparateLines()
+    {
+        var metadata = SdMetadataParser.ParseNovelAi(
+            "2girls, beach",
+            """
+            {
+              "prompt": "2girls, beach",
+              "uc": "lowres",
+              "v4_prompt": { "caption": {
+                "base_caption": "2girls, beach",
+                "char_captions": [
+                  { "char_caption": "girl, red hair", "centers": [{ "x": 0.3, "y": 0.5 }] },
+                  { "char_caption": "girl, blue hair", "centers": [{ "x": 0.7, "y": 0.5 }] }
+                ] } },
+              "v4_negative_prompt": { "caption": {
+                "base_caption": "lowres",
+                "char_captions": [ { "char_caption": "extra arms" }, { "char_caption": "" } ] } }
+            }
+            """);
+
+        Assert.NotNull(metadata);
+        Assert.Equal("2girls, beach\ngirl, red hair\ngirl, blue hair", metadata.Prompt);
+        Assert.Equal("lowres\nextra arms", metadata.NegativePrompt);
+    }
+
+    [Fact]
+    public void ParseNovelAi_V4WithNoCharacters_ReturnsBaseCaption()
+    {
+        var metadata = SdMetadataParser.ParseNovelAi(
+            null,
+            """{ "v4_prompt": { "caption": { "base_caption": "1girl", "char_captions": [] } } }""");
+
+        Assert.NotNull(metadata);
+        Assert.Equal("1girl", metadata.Prompt);
+    }
+
+    [Fact]
     public void Read_PngWithParametersChunk_ReturnsA1111Metadata()
     {
         var path = WritePng(("parameters", A1111Payload, false));
