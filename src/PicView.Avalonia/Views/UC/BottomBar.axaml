@@ -900,6 +900,24 @@
                     ToolTip.Tip="{CompiledBinding Translation.Settings.Value}"
                     ZIndex="1" />
 
+                <!--  Image info: a click alternative to the I shortcut, which remote sessions can drop  -->
+                <customControls:IconButton
+                    x:Name="ImageInfoButton"
+                    Width="38"
+                    Height="{CompiledBinding BottombarHeight.Value}"
+                    Background="{DynamicResource SecondaryButtonBackgroundColor}"
+                    BorderBrush="{DynamicResource MainBorderColor}"
+                    BorderThickness="0,0,1,0"
+                    Classes="noBorderHover"
+                    Command="{CompiledBinding ImageInfoWindowCommand}"
+                    Foreground="{DynamicResource MainTextColor}"
+                    Icon="{StaticResource CameraImage}"
+                    IconHeight="17"
+                    IconWidth="17"
+                    IsTabStop="False"
+                    ToolTip.HorizontalOffset="15"
+                    ToolTip.Tip="{CompiledBinding Translation.ImageInfo.Value}" />
+
             </StackPanel>
 
             <Path
