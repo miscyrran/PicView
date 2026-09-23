@@ -199,7 +199,15 @@ public class KeybindTextBox : TextBox
 
     private async Task AssociateKey(KeyEventArgs e)
     {
-        switch (e.Key)
+        // Remote desktop clients in Unicode mode send letters without a key code; recover it,
+        // and ignore anything still unresolved rather than binding "None".
+        var key = KeyResolver.Resolve(e);
+        if (key == Key.None)
+        {
+            return;
+        }
+
+        switch (key)
         {
             case Key.LeftShift:
             case Key.RightShift:
@@ -212,14 +220,14 @@ public class KeybindTextBox : TextBox
                 return;
         }
 
-        KeybindingManager.CustomShortcuts.Remove(new KeyGesture(e.Key, e.KeyModifiers));
+        KeybindingManager.CustomShortcuts.Remove(new KeyGesture(key, e.KeyModifiers));
         
         if (string.IsNullOrEmpty(MethodName))
         {
             return;
         }
 
-        if (e.Key == Key.Escape)
+        if (key == Key.Escape)
         {
             e.Handled = true;
             MainKeyboardShortcuts.IsEscKeyEnabled = false;
@@ -238,14 +246,14 @@ public class KeybindTextBox : TextBox
             if (KeybindingManager.CustomShortcuts.ContainsValue(MethodName))
             {
                 // If the main key is not present, add a new entry with the alternative key
-                var altKey = (Key)Enum.Parse(typeof(Key), e.Key.ToString());
+                var altKey = (Key)Enum.Parse(typeof(Key), key.ToString());
                 var keyGesture = new KeyGesture(altKey, e.KeyModifiers);
                 KeybindingManager.CustomShortcuts[keyGesture] = MethodName;
             }
             else
             {
                 // Update the key and function name in the CustomShortcuts dictionary
-                var keyGesture = new KeyGesture(e.Key, e.KeyModifiers);
+                var keyGesture = new KeyGesture(key, e.KeyModifiers);
                 KeybindingManager.CustomShortcuts[keyGesture] = MethodName;
             }
         }
@@ -257,7 +265,7 @@ public class KeybindTextBox : TextBox
                 Remove();
             }
 
-            var keyGesture = new KeyGesture(e.Key, e.KeyModifiers);
+            var keyGesture = new KeyGesture(key, e.KeyModifiers);
             KeybindingManager.CustomShortcuts[keyGesture] = MethodName;
         }
 

@@ -69,6 +69,9 @@ public static partial class ShellThumbnailNative
     [LibraryImport("gdi32.dll")]
     private static partial int GetObjectW(IntPtr hObject, int nCount, ref BITMAP lpObject);
 
+    [LibraryImport("gdi32.dll", EntryPoint = "GetObjectW")]
+    private static partial int GetDibSection(IntPtr hObject, int nCount, ref DIBSECTION lpObject);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct BITMAP
     {
@@ -79,6 +82,34 @@ public static partial class ShellThumbnailNative
         public ushort bmPlanes;
         public ushort bmBitsPixel;
         public IntPtr bmBits;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct BITMAPINFOHEADER
+    {
+        public uint biSize;
+        public int biWidth;
+        public int biHeight;
+        public ushort biPlanes;
+        public ushort biBitCount;
+        public uint biCompression;
+        public uint biSizeImage;
+        public int biXPelsPerMeter;
+        public int biYPelsPerMeter;
+        public uint biClrUsed;
+        public uint biClrImportant;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DIBSECTION
+    {
+        public BITMAP dsBm;
+        public BITMAPINFOHEADER dsBmih;
+        public uint dsBitfields0;
+        public uint dsBitfields1;
+        public uint dsBitfields2;
+        public IntPtr dshSection;
+        public uint dsOffset;
     }
 
     #endregion
@@ -180,7 +211,24 @@ public static partial class ShellThumbnailNative
         var totalBytes = stride * bmp.bmHeight;
         var pixels = new byte[totalBytes];
 
-        Marshal.Copy(bmp.bmBits, pixels, 0, totalBytes);
+        // The shell usually returns a bottom-up DIB (positive biHeight): its first row in memory
+        // is the bottom of the image. BITMAP.bmHeight is always positive, so the orientation has
+        // to come from the DIBSECTION header. Copy the rows in reverse to get top-down pixels.
+        var dib = new DIBSECTION();
+        var isBottomUp = GetDibSection(hBitmap, Marshal.SizeOf<DIBSECTION>(), ref dib) != 0 &&
+                         dib.dsBmih.biHeight > 0;
+
+        if (isBottomUp)
+        {
+            for (var row = 0; row < bmp.bmHeight; row++)
+            {
+                Marshal.Copy(bmp.bmBits + row * stride, pixels, (bmp.bmHeight - 1 - row) * stride, stride);
+            }
+        }
+        else
+        {
+            Marshal.Copy(bmp.bmBits, pixels, 0, totalBytes);
+        }
 
         return pixels;
     }

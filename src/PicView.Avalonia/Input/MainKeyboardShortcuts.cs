@@ -51,11 +51,14 @@ public static class MainKeyboardShortcuts
             return;
         }
 
-        UpdateModifierState(e.Key, true);
+        // Remote desktop clients in Unicode mode send letters without a key code; recover it.
+        var key = KeyResolver.Resolve(e);
+
+        UpdateModifierState(key, true);
         
 #if DEBUG
         // Handle special debug keys first
-        if (HandleDebugKeys(e.Key))
+        if (HandleDebugKeys(key))
         {
             return;
         }
@@ -68,7 +71,7 @@ public static class MainKeyboardShortcuts
         // or the modifier was pressed before the window had focus). This ensures that
         // a bare-key binding such as "S" (rotate) only fires when no modifiers are
         // actually held, so "Ctrl+S" (save) is never mistakenly dispatched as "S".
-        CurrentKeys = new KeyGesture(e.Key, e.KeyModifiers);
+        CurrentKeys = new KeyGesture(key, e.KeyModifiers);
 
         // Track key repeat for held down state
         _keyRepeatCount++;
@@ -81,7 +84,7 @@ public static class MainKeyboardShortcuts
         }
         
         // If it's a modifier key only, nothing more to do
-        if (IsModifierKey(e.Key))
+        if (IsModifierKey(key))
         {
             return;
         }
