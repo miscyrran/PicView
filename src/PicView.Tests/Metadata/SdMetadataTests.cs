@@ -13,6 +13,23 @@ public class SdMetadataTests
         "Steps: 25, Sampler: DPM++ 2M Karras, CFG scale: 7, Seed: 1234567890, Size: 512x768, Model: someModel";
 
     [Fact]
+    public void ParseUnknownPayload_NovelAiStealthWrapper_ParsesAsNovelAi()
+    {
+        // NovelAI's stealth payload wraps its PNG chunks in one JSON object.
+        const string payload =
+            "{\"Description\": \"a cat\", \"Software\": \"NovelAI\", " +
+            "\"Comment\": \"{\\\"prompt\\\": \\\"a cat\\\", \\\"uc\\\": \\\"blurry\\\", \\\"steps\\\": 28}\"}";
+
+        var metadata = SdMetadataReader.ParseUnknownPayload(payload);
+
+        Assert.NotNull(metadata);
+        Assert.Equal("NovelAI", metadata.Generator);
+        Assert.Equal("a cat", metadata.Prompt);
+        Assert.Equal("blurry", metadata.NegativePrompt);
+        Assert.Equal("Steps: 28", metadata.Settings);
+    }
+
+    [Fact]
     public void ParseA1111_FullPayload_SplitsPromptNegativeAndSettings()
     {
         var metadata = SdMetadataParser.ParseA1111(A1111Payload);

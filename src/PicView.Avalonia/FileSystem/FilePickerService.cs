@@ -151,7 +151,7 @@ public class FilePickerService(IStorageProvider? storageProvider = null)
                     GetFilePickerFileTypes.HeifFileType,
                     GetFilePickerFileTypes.SvgFileType],
                 SuggestedFileName = suggestedFileName,
-                SuggestedStartLocation = await provider.TryGetFolderFromPathAsync(fileName ?? string.Empty).ConfigureAwait(false)
+                SuggestedStartLocation = await provider.TryGetFolderFromPathAsync(Path.GetDirectoryName(fileName) ?? string.Empty).ConfigureAwait(false)
             };
             
             var file = await ExecuteOnUIThread(() => provider.SaveFilePickerAsync(options)).ConfigureAwait(false);

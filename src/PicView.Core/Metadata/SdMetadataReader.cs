@@ -157,7 +157,7 @@ public static class SdMetadataReader
     /// <summary>
     /// Decodes a payload whose producer is not known from the chunk name it arrived under.
     /// </summary>
-    private static SdMetadata? ParseUnknownPayload(string payload)
+    internal static SdMetadata? ParseUnknownPayload(string payload)
     {
         if (string.IsNullOrWhiteSpace(payload))
         {
@@ -166,10 +166,52 @@ public static class SdMetadataReader
 
         if (payload.TrimStart().StartsWith('{'))
         {
-            return SdMetadataParser.ParseInvokeAi(payload) ?? SdMetadataParser.ParseComfyUi(payload, null);
+            return ParseNovelAiWrapper(payload) ??
+                   SdMetadataParser.ParseInvokeAi(payload) ??
+                   SdMetadataParser.ParseComfyUi(payload, null);
         }
 
         return SdMetadataParser.ParseA1111(payload);
+    }
+
+    /// <summary>
+    /// NovelAI's stealth payload is a JSON object holding its PNG text chunks by name
+    /// (Description, Software, Comment...), rather than the chunks themselves.
+    /// </summary>
+    private static SdMetadata? ParseNovelAiWrapper(string payload)
+    {
+        try
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(payload);
+            var root = document.RootElement;
+            if (root.ValueKind != System.Text.Json.JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            var chunks = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var property in root.EnumerateObject())
+            {
+                if (property.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    chunks[property.Name] = property.Value.GetString() ?? string.Empty;
+                }
+            }
+
+            if (!TryGet(chunks, "Software", out var software) ||
+                !software.Contains("NovelAI", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            chunks.TryGetValue("Description", out var description);
+            chunks.TryGetValue("Comment", out var comment);
+            return SdMetadataParser.ParseNovelAi(description, comment);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>

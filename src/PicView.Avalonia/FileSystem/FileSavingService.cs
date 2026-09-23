@@ -42,10 +42,9 @@ public class FileSavingService(FilePickerService? filePickerService = null)
 
     public async ValueTask<bool> SaveFileAs(MainWindowViewModel vm)
     {
-        // Suggest random filename for saving, if it is not an existing file
-        var fileName = vm.WindowTabs.ActiveTab.CurrentValue?.FileInfo?.CurrentValue is null
-            ? Path.GetRandomFileName()
-            : vm.WindowTabs.ActiveTab.CurrentValue.FileInfo.CurrentValue.Name;
+        // Pass the full path: it is both the suggested name and the source that gets re-read.
+        // A null source (image not backed by a file) makes the picker suggest a random name.
+        var fileName = vm.WindowTabs.ActiveTab.CurrentValue?.FileInfo?.CurrentValue?.FullName;
         
         var isSaved = await _filePickerService.PickAndSaveFileAsAsync(fileName, vm).ConfigureAwait(false);
         if (isSaved)
@@ -120,9 +119,7 @@ public class FileSavingService(FilePickerService? filePickerService = null)
                             return false;
                         }
 
-                        if (string.IsNullOrWhiteSpace(filename)) return false;
-
-                        await using var stream = FileStreamUtils.GetOptimizedFileStream(new FileInfo(filename), true);
+                        await using var stream = FileStreamUtils.GetOptimizedFileStream(new FileInfo(destination), true);
                         bitmap.Save(stream, PngBitmapEncoderOptions.Default);
                         ResetFlipIfNeeded();
                         break;
