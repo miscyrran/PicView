@@ -112,11 +112,9 @@ public static class UpdateImage
         
         SetWindowAndImageSize(mainWindow, tabViewModel, vm);
 
-        if (tabViewModel.Gallery.IsDockedGalleryVisible.CurrentValue)
-        {
-            imageViewer.GalleryView.GalleryItemsControl.ScrollToCenterOfCurrentItem();
-        }
-        tabViewModel.ZoomLevel.Value = Convert.ToInt32(tabViewModel.InitialZoom.CurrentValue * 100);;
+        imageViewer.UpdateMotionPhoto(tabViewModel);
+        
+        tabViewModel.ZoomLevel.Value = Convert.ToInt32(tabViewModel.InitialZoom.CurrentValue * 100);
         tabViewModel.UpdateTabTitle();
     }
 
@@ -194,6 +192,7 @@ public static class UpdateImage
 
             imageViewer.ResetZoomSlim();
             imageViewer.Rotate(0);
+            imageViewer.UpdateMotionPhoto(tabViewModel);
         });
         
         var zoom = tabViewModel.ZoomLevel.CurrentValue;

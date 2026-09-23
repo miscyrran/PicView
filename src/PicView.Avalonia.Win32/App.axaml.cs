@@ -2,7 +2,6 @@ using System.Runtime;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using PicView.Avalonia.ColorManagement;
 using PicView.Avalonia.ImageHandling;
 using PicView.Avalonia.StartUp;
 using PicView.Avalonia.Win32.Views;
@@ -49,8 +48,6 @@ public class App : Application, IPlatformSpecificService
         var settingsExists = LoadSettings();
         _coreViewModel = new CoreViewModel(this, GetImageModel.GetImageModelAsync);
         DataContext = _coreViewModel;
-
-        ThemeManager.DetermineTheme(Current, settingsExists);
 
         _mainWindow = new WinMainWindow();
         _mainWindowViewModel = _mainWindow.DataContext as MainWindowViewModel;

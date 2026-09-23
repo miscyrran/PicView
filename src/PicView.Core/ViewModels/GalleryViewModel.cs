@@ -25,20 +25,26 @@ public class GalleryViewModel : IDisposable
     public BindableReactiveProperty<bool> IsDockedGalleryVisible { get; } = new(Settings.Gallery.IsGalleryDocked);
     public BindableReactiveProperty<double> ItemSpacing { get; } = new(Settings.Gallery.ItemSpacing);
     public BindableReactiveProperty<double> LineSpacing { get; } = new(Settings.Gallery.LineSpacing);
-    public BindableReactiveProperty<bool> IsGalleryDocked { get; } = new(Settings.Gallery.IsGalleryDocked);
     public BindableReactiveProperty<int> SelectedGalleryItemIndex { get; } = new(-1);
     
     public BindableReactiveProperty<bool> IsTopDocked { get; } = new();
     public BindableReactiveProperty<bool> IsBottomDocked { get; } = new();
     public BindableReactiveProperty<bool> IsLeftDocked { get; } = new();
     public BindableReactiveProperty<bool> IsRightDocked { get; } = new();
+    public BindableReactiveProperty<bool> IsGalleryDocked { get; } = new(Settings.Gallery.IsGalleryDocked);
 
     public GalleryLoadingState LoadingState { get; set; }
 
     public void Initialize()
     {
         GallerySettingsConverter.UpdateDockPositionProperties(this);
-        Observable.EveryValueChanged(Settings.Gallery, g => g.IsGalleryDocked)
+
+        if (Settings.Gallery is not { } gallery)
+        {
+            return;
+        }
+
+        Observable.EveryValueChanged(gallery, g => g.IsGalleryDocked)
         .Subscribe(isDocked =>
         {
             if (isDocked && ActiveGalleryMode.Value is GalleryMode.Closed)
@@ -60,23 +66,17 @@ public class GalleryViewModel : IDisposable
         }, DebugHelper.LogError(nameof(GalleryViewModel), nameof(Initialize)))
         .AddTo(ref _disposables);
 
-        Observable.EveryValueChanged(Settings.Gallery, g => g.ItemSpacing)
+        Observable.EveryValueChanged(gallery, g => g.ItemSpacing)
         .Subscribe(x =>
         {
-            if (IsGalleryExpanded.CurrentValue)
-            {
-                ItemSpacing.Value = x;
-            }
+            ItemSpacing.Value = x;
         }, DebugHelper.LogError(nameof(GalleryViewModel), nameof(Initialize)))
         .AddTo(ref _disposables);
 
-        Observable.EveryValueChanged(Settings.Gallery, g => g.LineSpacing)
+        Observable.EveryValueChanged(gallery, g => g.LineSpacing)
         .Subscribe(x =>
         {
-            if (IsGalleryExpanded.CurrentValue)
-            {
-                LineSpacing.Value = x;
-            }
+            LineSpacing.Value = x;
         }, DebugHelper.LogError(nameof(GalleryViewModel), nameof(Initialize)))
         .AddTo(ref _disposables);
 
@@ -84,6 +84,10 @@ public class GalleryViewModel : IDisposable
         {
             IsGalleryExpanded.Value = mode == GalleryMode.Expanded;
             IsDockedGalleryVisible.Value = mode == GalleryMode.Docked;
+            if (mode != GalleryMode.Expanded)
+            {
+                SelectedGalleryItemIndex.Value = -1;
+            }
         }, DebugHelper.LogError(nameof(GalleryViewModel), nameof(Initialize)))
         .AddTo(ref _disposables);
         
@@ -144,7 +148,7 @@ public class GalleryViewModel : IDisposable
         }, DebugHelper.LogError(nameof(GalleryViewModel), nameof(Initialize)))
         .AddTo(ref _disposables);
         
-        Observable.EveryValueChanged(Settings.Gallery, x => x.IsGalleryDocked)
+        Observable.EveryValueChanged(gallery, x => x.IsGalleryDocked)
         .Skip(1)
         .Subscribe(x =>
         {
@@ -163,7 +167,7 @@ public class GalleryViewModel : IDisposable
         }, DebugHelper.LogError(nameof(GalleryViewModel), nameof(Initialize)))
         .AddTo(ref _disposables);
         
-        Observable.EveryValueChanged(Settings.Gallery, x => x.DockPosition)
+        Observable.EveryValueChanged(gallery, x => x.DockPosition)
         .Skip(1)
         .Subscribe(_ => { GallerySettingsConverter.UpdateDockPositionProperties(this); }, DebugHelper.LogError(nameof(GalleryViewModel), nameof(Initialize)))
         .AddTo(ref _disposables);

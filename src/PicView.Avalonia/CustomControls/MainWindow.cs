@@ -12,6 +12,7 @@ using PicView.Avalonia.Interfaces;
 using PicView.Avalonia.Navigation;
 using PicView.Avalonia.Services;
 using PicView.Avalonia.UI;
+using PicView.Avalonia.Views.Gallery;
 using PicView.Avalonia.Views.Main;
 using PicView.Avalonia.Views.UC;
 using PicView.Avalonia.Views.UC.PopUps;
@@ -229,6 +230,17 @@ public class MainWindow : Window, IMainWindow
         vm.TopTitlebarViewModel.CloseDropDownMenu();
         UIHelper.GetMainView.MainPanel.Children.Add(new QuickSettingsDialog());
     }
+    
+    public void AddGalleryItemSizeSlider()
+    {
+        if (UIHelper.GetMainView.DataContext is not MainWindowViewModel vm)
+        {
+            return;
+        }
+
+        vm.TopTitlebarViewModel.CloseDropDownMenu();
+        UIHelper.GetMainView.MainPanel.Children.Add(new GalleryItemSizeSlider());
+    }
 
     #endregion
 
@@ -315,6 +327,18 @@ public class MainWindow : Window, IMainWindow
         }
         
         WindowResizing.HandleWindowResize(this, size);
+        if (DataContext is not MainWindowViewModel vm)
+        {
+            return;
+        }
+        if (vm.WindowTabs.ActiveTab.CurrentValue.Gallery.IsDockedGalleryVisible.CurrentValue
+            && vm.WindowTabs.ActiveTab.CurrentValue.CurrentView.CurrentValue is ImageViewer imageViewer)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                imageViewer.GalleryView.GalleryItemsControl.ScrollToCenterOfCurrentItem();
+            }, DispatcherPriority.Render);
+        }
         var newWidth = size.NewValue.Value.Width;
         if (newWidth == Bounds.Width || 
             size.OldValue.Value.Width >= SizeDefaults.FullBtnBp && size.NewValue.Value.Width >= SizeDefaults.FullBtnBp)

@@ -20,6 +20,7 @@ using PicView.Avalonia.WindowBehavior;
 using PicView.Core.FileAssociations;
 using PicView.Core.FileHistory;
 using PicView.Core.FileSorting;
+using PicView.Core.Localization;
 using PicView.Core.ProcessHandling;
 using PicView.Core.ViewModels;
 
@@ -56,10 +57,6 @@ public static class StartUpHelper
                     }
                 });
             }
-            else if (arg.Equals("blank:", StringComparison.OrdinalIgnoreCase))
-            {
-                BlankStartUp();
-            }
             else if (Settings.UIProperties.OpenInSameWindow)
             {
                 if (!ProcessHelper.CheckIfAnotherInstanceIsRunning())
@@ -80,19 +77,17 @@ public static class StartUpHelper
         {
             WindowFunctions.RegularWindowStartUp(vm, settingsExists, desktop, window);
         }
-            
-        return;
+    }
+    
+    public static void HandleWindowStartUpSettings(CoreViewModel core, bool settingsExists, MainWindow window)
+    {
+        TranslationManager.Init();
+        SettingsUpdater.InitializeSettings(core.MainWindows.ActiveWindow.CurrentValue, settingsExists);
 
-        void BlankStartUp()
-        {
-            desktop.MainWindow = window;
-            
-            SettingsUpdater.InitializeSettings(vm.MainWindows.ActiveWindow.CurrentValue, settingsExists);
-
-            WindowFunctions.HandleWindowScalingMode(vm, window);
-
-            HandlePostWindowUpdates(vm, desktop, window);
-        }
+        WindowFunctions.HandleWindowScalingMode(core, window);
+        
+        ThemeManager.DetermineTheme(Application.Current, settingsExists);
+        HandleThemeUpdates(core.MainWindows.ActiveWindow.CurrentValue);
     }
 
     public static void HandlePostWindowUpdates(CoreViewModel core, IClassicDesktopStyleApplicationLifetime desktop, MainWindow mainWindow)
@@ -113,7 +108,6 @@ public static class StartUpHelper
         BackGroundLoadings();
 
         SetWindowEventHandlers(mainWindow);
-        HandleThemeUpdates(vm);
         mainWindow.UIHelper.AddDropDownMenu(mainWindow);
         mainWindow.UIHelper.AddFileMenu(vm);
         mainWindow.UIHelper.AddSettingsMenu(vm);
@@ -138,8 +132,9 @@ public static class StartUpHelper
         {
             Task.Run(async() =>
             {
+                Debug.Assert(core.PlatformService != null);
                 await KeybindingManager.LoadKeybindings(core.PlatformService);
-                core.MainWindows.ActiveWindow.Value.Mapper = new FunctionsMapper(vm, mainWindow);
+                core.MainWindows.ActiveWindow.Value?.Mapper = new FunctionsMapper(vm, mainWindow);
                 FileHistoryManager.Initialize();
                 HandleWindowControlSettings(core, desktop);
                 vm.WindowTabs.SetSortOrder((SortFilesBy)Settings.Sorting.SortPreference);
@@ -155,11 +150,6 @@ public static class StartUpHelper
 
     private static void HandleThemeUpdates(MainWindowViewModel vm)
     {
-        if (Settings.Theme.GlassTheme)
-        {
-            GlassThemeHelper.GlassThemeUpdates();
-        }
-
         BackgroundManager.SetBackground(Settings.UIProperties.BgColorChoice);
         ColorManager.UpdateAccentColors(Settings.Theme.ColorTheme);
         UIHelper.SetCtrlToZoomImage(vm);
@@ -175,12 +165,19 @@ public static class StartUpHelper
         }
     }
 
-    public static void HandleStartImage(MainWindow mainWindow, CoreViewModel vm, string arg)
+    public static void HandleStartImage(MainWindow mainWindow, CoreViewModel core, string arg)
     {
-        Task.Run(() => QuickLoad.QuickLoadAsync(mainWindow, vm, arg, continueFromLeftOff: false, isStartup: true));
+        Task.Run(() => QuickLoad.QuickLoadAsync(mainWindow, core, arg, continueFromLeftOff: false, isStartup: true));
+        if (Settings.WindowProperties.AutoFit)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                WindowResizing.FastCenterWindow(mainWindow);
+            }, DispatcherPriority.Input);
+        }
     }
 
-    public static void StartUpMenuOrLastFile(MainWindow mainWindow, CoreViewModel vm)
+    public static void StartUpMenuOrLastFile(MainWindow mainWindow, CoreViewModel core)
     {
         if (Settings.StartUp.OpenLastFile)
         {
@@ -190,13 +187,13 @@ public static class StartUpHelper
             }
             else
             {
-                Task.Run(() => QuickLoad.QuickLoadAsync(mainWindow, vm, Settings.StartUp.LastFile, continueFromLeftOff: true, isStartup: true));
+                Task.Run(() => QuickLoad.QuickLoadAsync(mainWindow, core, Settings.StartUp.LastFile, continueFromLeftOff: true, isStartup: true));
                 if (Settings.WindowProperties.AutoFit)
                 {
                     Dispatcher.UIThread.Post(() =>
                     {
                         WindowResizing.FastCenterWindow(mainWindow);
-                    }, DispatcherPriority.Loaded);
+                    }, DispatcherPriority.Input);
                 }
             }
         }
@@ -213,14 +210,17 @@ public static class StartUpHelper
 
         void ShowStartUpMenu()
         {
+            var vm = core.MainWindows.ActiveWindow.CurrentValue;
+            var tab = vm.WindowTabs.ActiveTab.CurrentValue;
+            tab.ParentWindowContext = vm;
             var startUpMenu = new StartUpMenu
             {
                 Buttons =
                 {
-                    DataContext = vm
+                    DataContext = tab
                 }
             };
-            vm.MainWindows.ActiveWindow.CurrentValue.WindowTabs.ActiveTab.Value.CurrentView.Value = startUpMenu;
+            tab.CurrentView.Value = startUpMenu;
             mainWindow.Show();
         }
     }

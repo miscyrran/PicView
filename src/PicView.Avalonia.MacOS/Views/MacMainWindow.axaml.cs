@@ -7,6 +7,7 @@ using PicView.Avalonia.MacOS.WindowImpl;
 using WindowInitializer = PicView.Avalonia.Services.WindowInitializer;
 using PicView.Avalonia.StartUp;
 using PicView.Avalonia.WindowBehavior;
+using PicView.Core.Conversion;
 using PicView.Core.DebugTools;
 using PicView.Core.IPlatform;
 using PicView.Core.ViewModels;
@@ -16,9 +17,14 @@ namespace PicView.Avalonia.MacOS.Views;
 
 public partial class MacMainWindow : MainWindow, IPlatformWindowService
 {
-    public MacMainWindow()
+    public MacMainWindow() : this(null)
     {
-        if (Application.Current.DataContext is not CoreViewModel core)
+    }
+
+    public MacMainWindow(CoreViewModel? core)
+    {
+        core ??= Application.Current?.DataContext as CoreViewModel;
+        if (core is null)
         {
             return;
         }

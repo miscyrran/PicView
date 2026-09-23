@@ -31,6 +31,7 @@ public static class SupportedFiles
         ".tga",
         ".heic",
         ".heif",
+        ".livp",
         ".hdr",
         ".xcf",
         ".jxl",
@@ -109,7 +110,7 @@ public static class SupportedFiles
     extension(string file)
     {
         public bool IsCommon()
-            => Path.GetExtension(file).ToLower() switch
+            => Path.GetExtension(file).ToLowerInvariant() switch
             {
                 ".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".jfif" => true,
                 _ => false

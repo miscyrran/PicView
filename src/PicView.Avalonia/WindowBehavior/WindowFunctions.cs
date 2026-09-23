@@ -5,19 +5,15 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using PicView.Avalonia.CustomControls;
 using PicView.Avalonia.Input;
-using PicView.Avalonia.SettingsManagement;
 using PicView.Avalonia.StartUp;
 using PicView.Avalonia.UI;
 using PicView.Avalonia.Views.UC;
-using PicView.Core.ArchiveHandling;
 using PicView.Core.Config;
 using PicView.Core.DebugTools;
 using PicView.Core.FileHandling;
 using PicView.Core.FileHistory;
 using PicView.Core.IPlatform;
-using PicView.Core.Localization;
 using PicView.Core.Models;
-using PicView.Core.Sizing;
 using PicView.Core.ViewModels;
 
 // ReSharper disable CompareOfFloatsByEqualityOperator
@@ -38,7 +34,6 @@ public static class WindowFunctions
         }
         var window = mainWindow.MainWindowInitializer.CreateMainWindow();
         var vm = window.DataContext as MainWindowViewModel;
-        SettingsUpdater.InitializeSettings(vm, true);
         HandleWindowScalingMode(core, window);
         var startUpMenu = new StartUpMenu
         {
@@ -54,37 +49,37 @@ public static class WindowFunctions
 
     public static void DetachedWindowStartup(CoreViewModel core, IClassicDesktopStyleApplicationLifetime desktop, MainWindow window)
     {
-        SettingsUpdater.InitializeSettings(window.DataContext as MainWindowViewModel, true);
         HandleWindowScalingMode(core, window, false);
         window.Show();
         
         StartUpHelper.HandlePostWindowUpdates(core, desktop, window);
     }
     
-    public static void RegularWindowStartUp(CoreViewModel vm, bool settingsExists,
+    public static void RegularWindowStartUp(CoreViewModel core, bool settingsExists,
         IClassicDesktopStyleApplicationLifetime desktop, MainWindow window)
     {
         desktop.MainWindow = window;
-        TranslationManager.Init();
-        SettingsUpdater.InitializeSettings(vm.MainWindows.ActiveWindow.CurrentValue, settingsExists);
-        
-        HandleWindowScalingMode(vm, window);
+        StartUpHelper.HandleWindowStartUpSettings(core, settingsExists, window);
 
-        StartUpHelper.StartUpMenuOrLastFile(window, vm);
+        StartUpHelper.StartUpMenuOrLastFile(window, core);
 
-        StartUpHelper.HandlePostWindowUpdates(vm, desktop, window);
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            StartUpHelper.HandlePostWindowUpdates(core, desktop, window);
+        }, priority: DispatcherPriority.Background);
     }
     
-    public static void ImageStartUp(string filePath, CoreViewModel vm, bool settingsExists,
+    public static void ImageStartUp(string filePath, CoreViewModel core, bool settingsExists,
         IClassicDesktopStyleApplicationLifetime desktop, MainWindow window)
     {
-        SettingsUpdater.InitializeSettings(vm.MainWindows.ActiveWindow.CurrentValue, settingsExists);
+        StartUpHelper.HandleWindowStartUpSettings(core, settingsExists, window);
 
-        HandleWindowScalingMode(vm, window);
+        StartUpHelper.HandleStartImage(window, core, filePath);
 
-        StartUpHelper.HandleStartImage(window, vm, filePath);
-
-        StartUpHelper.HandlePostWindowUpdates(vm, desktop, window);
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            StartUpHelper.HandlePostWindowUpdates(core, desktop, window);
+        }, priority: DispatcherPriority.Background);
     }
 
     #endregion
@@ -93,7 +88,8 @@ public static class WindowFunctions
 
     public static async Task WindowClosingBehavior()
     {
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+        var desktop = Dispatcher.UIThread.Invoke(() => Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime);
+        if (desktop is null)
         {
             return;
         }
@@ -105,17 +101,19 @@ public static class WindowFunctions
     {
         WindowResizing.SaveSize(window);
 
-        if (Application.Current.DataContext is not CoreViewModel core)
+        var core = await Dispatcher.UIThread.InvokeAsync(() => Application.Current.DataContext as CoreViewModel);
+        if (core is null)
         {
             return;
         }
 
-        if (window.DataContext is not MainWindowViewModel vm)
+        var vm = Dispatcher.UIThread.Invoke(() => window.DataContext as MainWindowViewModel);
+        if (vm is null)
         {
             return;
         }
         
-        window.Hide();
+        Dispatcher.UIThread.Invoke(window.Hide);
         
         string? lastFile;
         var tab = vm.WindowTabs.ActiveTab.CurrentValue;
@@ -193,7 +191,7 @@ public static class WindowFunctions
         else if (Settings.WindowProperties.AutoFit)
         {
             window.WindowStartupLocation = adjustPos ? WindowStartupLocation.CenterScreen : WindowStartupLocation.Manual;
-            SetAutoFit(vm.MainWindows.ActiveWindow.CurrentValue, window, false);
+            SetAutoFit(vm.MainWindows.ActiveWindow.CurrentValue, window);
         }
         else 
         {
@@ -273,17 +271,11 @@ public static class WindowFunctions
         }
     }
 
-    public static void SetAutoFit(MainWindowViewModel vm, Window window, bool center = true)
+    public static void SetAutoFit(MainWindowViewModel vm, Window window)
     {
         window.SizeToContent = SizeToContent.WidthAndHeight;
         Settings.WindowProperties.AutoFit = true;
         vm.IsAutoFit.Value = true;
-
-        if (center)
-        {
-            // Fix unpleasant window placement
-            CenterWindowOnScreen();
-        }
     }
 
     /// <summary>

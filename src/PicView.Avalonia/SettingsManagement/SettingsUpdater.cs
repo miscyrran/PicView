@@ -25,9 +25,9 @@ public static class SettingsUpdater
     {
         ServiceHelper.SetAvaloniaImageLoader();
         ServiceHelper.SetGalleryLoader();
-        Task.Run(() =>
+        Task.Run(async () =>
         {
-            _ = LanguageUpdater.UpdateLanguageAsync(vm.Translation, settingsExists);
+            await LanguageUpdater.UpdateLanguageAsync(vm.Translation, settingsExists).ConfigureAwait(false);
             vm.TitlebarHeight.Value = Settings.WindowProperties.Fullscreen
                                            || !Settings.UIProperties.ShowInterface
                 ? 0
@@ -127,7 +127,7 @@ public static class SettingsUpdater
         WindowResizing.SetSize(mainWindow, WindowResizeReason.Layout);
 
         var tabViewModel = vm.WindowTabs.ActiveTab.CurrentValue;
-        tabViewModel.ZoomLevel.Value = Convert.ToInt32(tabViewModel.InitialZoom.CurrentValue * 100);;
+        tabViewModel.ZoomLevel.Value = Convert.ToInt32(tabViewModel.InitialZoom.CurrentValue * 100);
         tabViewModel.UpdateTabTitle();
         
         await SaveSettingsAsync().ConfigureAwait(false);

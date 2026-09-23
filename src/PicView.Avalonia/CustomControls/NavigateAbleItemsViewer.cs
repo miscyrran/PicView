@@ -5,8 +5,8 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using PicView.Avalonia.Views.Gallery;
 using PicView.Core.Gallery;
 using PicView.Core.ViewModels;
 
@@ -19,6 +19,8 @@ public class NavigateAbleItemsViewer : ItemsControl
 {
     #region Fields and  Avalonia Properties
     
+    private const double ScrollLineSize = 50;
+
     private AutoScrollViewer? _scrollViewer;
 
     protected override Type StyleKeyOverride => typeof(NavigateAbleItemsViewer);
@@ -41,15 +43,6 @@ public class NavigateAbleItemsViewer : ItemsControl
         set => SetValue(CurrentItemIndexProperty, value);
     }
 
-    public static readonly StyledProperty<bool> CenterCurrentItemProperty =
-        AvaloniaProperty.Register<NavigateAbleItemsViewer, bool>(nameof(CenterCurrentItem));
-
-    public bool CenterCurrentItem
-    {
-        get => GetValue(CenterCurrentItemProperty);
-        set => SetValue(CenterCurrentItemProperty, value);
-    }
-
     #endregion
 
     #region Constructor and Control Overrides
@@ -57,77 +50,12 @@ public class NavigateAbleItemsViewer : ItemsControl
     public NavigateAbleItemsViewer()
     {
         AddHandler(PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Direct | RoutingStrategies.Tunnel);
-        LayoutUpdated += (_, _) => ScheduleVisibilityUpdate();
     }
 
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
         base.OnApplyTemplate(e);
-        if (_scrollViewer != null)
-        {
-            _scrollViewer.ScrollChanged -= ScrollViewerOnScrollChanged;
-            _scrollViewer.SizeChanged -= ScrollViewerOnSizeChanged;
-        }
-
         _scrollViewer = e.NameScope.Find<AutoScrollViewer>("PART_ScrollViewer");
-        _scrollViewer.ScrollChanged += ScrollViewerOnScrollChanged;
-        _scrollViewer.SizeChanged += ScrollViewerOnSizeChanged;
-    }
-
-    private void ScrollViewerOnScrollChanged(object? sender, ScrollChangedEventArgs e) => ScheduleVisibilityUpdate();
-    private void ScrollViewerOnSizeChanged(object? sender, SizeChangedEventArgs e) => ScheduleVisibilityUpdate();
-
-    private bool _isVisibilityUpdatePending;
-    
-    private void ScheduleVisibilityUpdate()
-    {
-        if (_isVisibilityUpdatePending)
-        {
-            return;
-        }
-        _isVisibilityUpdatePending = true;
-        Dispatcher.UIThread.Post(() =>
-        {
-            _isVisibilityUpdatePending = false;
-            UpdateViewportVisibility();
-        }, DispatcherPriority.Background);
-    }
-    
-    private void UpdateViewportVisibility()
-    {
-        var animControl = this.FindLogicalAncestorOfType<GalleryAnimationControl>();
-        var isAnimating = animControl?.IsInAnimation ?? false;
-
-        var viewportRect = new Rect(new Point(0, 0), _scrollViewer.Viewport);
-        // Extend viewport slightly to preload items right before the user scrolls into view
-        var extendedViewportRect = viewportRect.Inflate(new Thickness(0, 200, 0, 200)); 
-
-        for (var i = 0; i < ItemCount; i++)
-        {
-            var container = ContainerFromIndex(i);
-            if (container is not { IsVisible: true })
-            {
-                continue;
-            }
-            
-            if (container is not ContentPresenter { Child: NavigateAbleItem item })
-            {
-                continue;
-            }
-
-            var position = container.TranslatePoint(new Point(0, 0), _scrollViewer);
-            if (!position.HasValue)
-            {
-                continue;
-            }
-
-            var itemRect = new Rect(position.Value, container.Bounds.Size);
-            var isVisible = extendedViewportRect.Intersects(itemRect);
-            if (!isAnimating && isVisible)
-            {
-                item.SetViewportVisibility(isVisible);
-            }
-        }
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -136,18 +64,12 @@ public class NavigateAbleItemsViewer : ItemsControl
 
         if (change.Property == CurrentItemIndexProperty)
         {
-            if (change is { OldValue: int oldIndex, NewValue: int newIndex })
-            {
-                ApplyCurrentItemVisualState(newIndex, oldIndex);
-                SelectedItemIndex = newIndex;
-            }
+            UpdateCurrentVisualState();
+            ScrollToCenterOfCurrentItem();
         }
         else if (change.Property == SelectedItemIndexProperty)
         {
-            if (change is { OldValue: int oldIndex, NewValue: int newIndex })
-            {
-                UpdatePreviousAndNextSelection(newIndex, oldIndex);
-            }
+            UpdateSelectionVisualState();
         }
     }
 
@@ -159,20 +81,56 @@ public class NavigateAbleItemsViewer : ItemsControl
             return;
         }
 
-        presenter.ApplyTemplate();
-        if (presenter.Child is not NavigateAbleItem navItem)
+        if (presenter.Child is NavigateAbleItem existingItem)
+        {
+            InitializeNavItem(existingItem, index);
+        }
+        else
+        {
+            EventHandler<AvaloniaPropertyChangedEventArgs>? handler = null;
+            handler = (_, e) =>
+            {
+                if (e.Property != ContentPresenter.ChildProperty || e.NewValue is not NavigateAbleItem newItem)
+                {
+                    return;
+                }
+
+                presenter.PropertyChanged -= handler;
+                var currentIndex = IndexFromContainer(presenter);
+                InitializeNavItem(newItem, currentIndex >= 0 ? currentIndex : index);
+            };
+            presenter.PropertyChanged += handler;
+        }
+    }
+
+    private void InitializeNavItem(NavigateAbleItem navItem, int index)
+    {
+        navItem.SetCurrent(CurrentItemIndex >= 0 && index == CurrentItemIndex);
+        navItem.SetSelected(SelectedItemIndex >= 0 && index == SelectedItemIndex);
+
+        if (navItem is GalleryItem galleryItem)
+        {
+            _ = galleryItem.LoadImage().ConfigureAwait(false);
+        }
+    }
+
+    protected override void ClearContainerForItemOverride(Control container)
+    {
+        base.ClearContainerForItemOverride(container);
+        if (container is not ContentPresenter presenter)
         {
             return;
         }
-
-        if (index == CurrentItemIndex)
+        if (presenter.Child is NavigateAbleItem navItem)
         {
-            navItem.SetCurrent(true);
+            navItem.SetCurrent(false);
+            navItem.SetSelected(false);
+            if (navItem is GalleryItem galleryItem)
+            {
+                galleryItem.UnloadImage();
+            }
         }
-
-        if (index == SelectedItemIndex) navItem.SetSelected(true);
     }
-
     #endregion
 
     #region Scrolling & Viewport Logic
@@ -201,52 +159,65 @@ public class NavigateAbleItemsViewer : ItemsControl
 
     public void ScrollToCenterOfCurrentItem()
     {
-        // Need to use Post to have calculations take place after render
-        Dispatcher.UIThread.Post(() =>
+        if (Dispatcher.CheckAccess())
         {
-            if (_scrollViewer is null || CurrentItemIndex < 0 || CurrentItemIndex >= ItemCount)
-            {
-                return;
-            }
+            ScrollToCenterOfCurrentItemInternal();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(ScrollToCenterOfCurrentItemInternal,DispatcherPriority.Render);
+        }
+    }
 
-            var container = ContainerFromIndex(CurrentItemIndex);
+    private void ScrollToCenterOfCurrentItemInternal()
+    {
+        // Ask the VirtualizingGallery for the exact bounds, realized or not!
+        if (ItemsPanelRoot is not VirtualizingGallery gallery)
+        {
+            return;
+        }
 
-            // Get item position relative to the ScrollViewer's viewport
-            var vector = container?.TranslatePoint(new Point(0, 0), _scrollViewer);
-            if (vector is null)
-            {
-                return;
-            }
+        var itemRect = gallery.GetItemBounds(CurrentItemIndex);
+        if (itemRect is null)
+        {
+            return;
+        }
 
-            var pos = vector.Value;
-            var offset = _scrollViewer.Offset;
-            var newX = offset.X;
-            var newY = offset.Y;
+        var pos = itemRect.Value;
+        var offset = _scrollViewer.Offset;
+        var newX = offset.X;
+        var newY = offset.Y;
 
-            // Center Horizontally if scrolling is possible
-            if (_scrollViewer.Extent.Width > _scrollViewer.Viewport.Width)
-            {
-                var itemCenter = pos.X + container.Bounds.Width / 2;
-                var viewportCenter = _scrollViewer.Viewport.Width / 2;
-                var diff = itemCenter - viewportCenter;
-                newX = offset.X + diff;
-            }
+        // Center Horizontally if scrolling is possible
+        if (_scrollViewer.Extent.Width > _scrollViewer.Viewport.Width)
+        {
+            var itemCenter = pos.X + pos.Width / 2;
+            var viewportCenter = _scrollViewer.Viewport.Width / 2;
+            var maxScrollX = _scrollViewer.Extent.Width - _scrollViewer.Viewport.Width;
+                
+            newX = Math.Clamp(itemCenter - viewportCenter, 0, maxScrollX);
+        }
 
-            // Center Vertically if scrolling is possible
-            if (_scrollViewer.Extent.Height > _scrollViewer.Viewport.Height)
-            {
-                var itemCenter = pos.Y + container.Bounds.Height / 2;
-                var viewportCenter = _scrollViewer.Viewport.Height / 2;
-                var diff = itemCenter - viewportCenter;
-                newY = offset.Y + diff;
-            }
+        // Center Vertically if scrolling is possible
+        if (_scrollViewer.Extent.Height > _scrollViewer.Viewport.Height)
+        {
+            var itemCenter = pos.Y + pos.Height / 2;
+            var viewportCenter = _scrollViewer.Viewport.Height / 2;
+            var maxScrollY = _scrollViewer.Extent.Height - _scrollViewer.Viewport.Height;
+                
+            newY = Math.Clamp(itemCenter - viewportCenter, 0, maxScrollY);
+        }
 
-            _scrollViewer.Offset = new Vector(newX, newY);
-        });
+        _scrollViewer.Offset = new Vector(newX, newY);
     }
 
     private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
+        if (e.Handled)
+        {
+            return;
+        }
+
         switch (Settings.Gallery.GalleryMouseWheelBehavior)
         {
             case GalleryMouseWheel.Navigate:
@@ -271,7 +242,11 @@ public class NavigateAbleItemsViewer : ItemsControl
             return;
         }
 
-        if (e.Delta.Y < 0 || e.Delta.X < 0)
+        // Mark as handled, so the inner ScrollViewer doesn't scroll on its own
+        // and fight the centering of the current item
+        e.Handled = true;
+
+        if (GetScrollDelta(e) < 0)
         {
             _ = tab.Next();
         }
@@ -283,71 +258,161 @@ public class NavigateAbleItemsViewer : ItemsControl
 
     private void ScrollTheControl(PointerWheelEventArgs e)
     {
-        if (e.Delta.Y < 0 || e.Delta.X < 0)
+        if (_scrollViewer is null)
         {
-            _scrollViewer.LineRight();
+            return;
+        }
+
+        // Mark as handled, so the inner ScrollViewer doesn't apply its own scrolling on top of ours.
+        // Otherwise, a small delta on the opposite axis (common on trackpads) makes it scroll backwards
+        e.Handled = true;
+
+        var delta = GetScrollDelta(e);
+        if (delta is 0)
+        {
+            return;
+        }
+
+        var offset = _scrollViewer.Offset;
+        var extent = _scrollViewer.Extent;
+        var viewport = _scrollViewer.Viewport;
+
+        if (_scrollViewer.HorizontalScrollBarVisibility != ScrollBarVisibility.Disabled &&
+            extent.Width > viewport.Width)
+        {
+            var maxX = extent.Width - viewport.Width;
+            offset = offset.WithX(Math.Clamp(offset.X - delta * ScrollLineSize, 0, maxX));
+        }
+        else if (_scrollViewer.VerticalScrollBarVisibility != ScrollBarVisibility.Disabled &&
+                 extent.Height > viewport.Height)
+        {
+            var maxY = extent.Height - viewport.Height;
+            offset = offset.WithY(Math.Clamp(offset.Y - delta * ScrollLineSize, 0, maxY));
         }
         else
         {
-            _scrollViewer.LineLeft();
+            return;
         }
+
+        _scrollViewer.SetCurrentValue(ScrollViewer.OffsetProperty, offset);
     }
+
+    /// <summary>
+    /// Reduces the wheel delta to a single value along the dominant axis,
+    /// so noise on the opposite axis can't reverse the scroll direction.
+    /// </summary>
+    private static double GetScrollDelta(PointerWheelEventArgs e)
+        => Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y) ? e.Delta.X : e.Delta.Y;
 
     #endregion
 
     #region Selection & Visual State Management
 
-    public void UpdatePreviousAndNextSelection(int index, int prevIndex)
+    public void UpdateCurrentVisualState()
     {
-        if (_scrollViewer == null || index < 0 || index >= ItemCount 
-            || ContainerFromIndex(index) is not ContentPresenter presenter)
+        var currentIndex = CurrentItemIndex;
+        if (ItemsPanelRoot is VirtualizingGallery gallery)
         {
-            return;
+            foreach (var realized in gallery.RealizedItems)
+            {
+                var navItem = GetNavigateAbleItem(realized.Element);
+                navItem?.SetCurrent(currentIndex >= 0 && realized.Index == currentIndex);
+            }
         }
-
-        if (presenter.Child is not NavigateAbleItem item)
+        else
         {
-            return;
-        }
-
-        item.SetSelected(true);
-
-        // Handle deselecting the previous item
-        if (prevIndex == index || prevIndex < 0 || prevIndex >= ItemCount 
-            || ContainerFromIndex(prevIndex) is not ContentPresenter prevPresenter)
-        {
-            return;
-        }
-        
-        if (prevPresenter.Child is NavigateAbleItem prevItem)
-        {
-            prevItem.SetSelected(false);
+            for (var i = 0; i < ItemCount; i++)
+            {
+                var navItem = GetNavigateAbleItem(ContainerFromIndex(i));
+                navItem?.SetCurrent(currentIndex >= 0 && i == currentIndex);
+            }
         }
     }
 
-    private void ApplyCurrentItemVisualState(int index, int prevIndex)
+    public void UpdateSelectionVisualState()
     {
-        if (_scrollViewer == null || index < 0 || index >= ItemCount
-            || ContainerFromIndex(index) is not ContentPresenter presenter)
+        var selectedIndex = SelectedItemIndex;
+        if (ItemsPanelRoot is VirtualizingGallery gallery)
+        {
+            foreach (var realized in gallery.RealizedItems)
+            {
+                var navItem = GetNavigateAbleItem(realized.Element);
+                navItem?.SetSelected(selectedIndex >= 0 && realized.Index == selectedIndex);
+            }
+        }
+        else
+        {
+            for (var i = 0; i < ItemCount; i++)
+            {
+                var navItem = GetNavigateAbleItem(ContainerFromIndex(i));
+                navItem?.SetSelected(selectedIndex >= 0 && i == selectedIndex);
+            }
+        }
+    }
+
+    private static NavigateAbleItem? GetNavigateAbleItem(Control? container)
+    {
+        if (container is null) return null;
+        if (container is NavigateAbleItem navItem) return navItem;
+        if (container is ContentPresenter presenter) return presenter.Child as NavigateAbleItem;
+        return null;
+    }
+
+    public void ScrollItemIntoView(int index)
+    {
+        if (index < 0 || index >= ItemCount)
         {
             return;
         }
 
-        if (presenter.Child is NavigateAbleItem item)
+        if (ContainerFromIndex(index) is { } container)
         {
-            item.SetCurrent(true);
+            container.BringIntoView();
+            return;
         }
 
-        if (prevIndex == index || prevIndex < 0 || prevIndex >= ItemCount
-            || ContainerFromIndex(prevIndex) is not ContentPresenter prevPresenter)
+        if (_scrollViewer is null || ItemsPanelRoot is not VirtualizingGallery gallery)
         {
             return;
         }
 
-        if (prevPresenter.Child is NavigateAbleItem prevItem)
+        var bounds = gallery.GetItemBounds(index);
+        if (!bounds.HasValue)
         {
-            prevItem.SetCurrent(false);
+            return;
         }
+
+        var rect = bounds.Value;
+        var offset = _scrollViewer.Offset;
+        var viewport = _scrollViewer.Viewport;
+        var newX = offset.X;
+        var newY = offset.Y;
+
+        if (_scrollViewer.Extent.Width > viewport.Width)
+        {
+            if (rect.Left < offset.X)
+            {
+                newX = rect.Left;
+            }
+            else if (rect.Right > offset.X + viewport.Width)
+            {
+                newX = rect.Right - viewport.Width;
+            }
+        }
+
+        if (_scrollViewer.Extent.Height > viewport.Height)
+        {
+            if (rect.Top < offset.Y)
+            {
+                newY = rect.Top;
+            }
+            else if (rect.Bottom > offset.Y + viewport.Height)
+            {
+                newY = rect.Bottom - viewport.Height;
+            }
+        }
+
+        _scrollViewer.Offset = new Vector(newX, newY);
     }
 
     private void UpdateSelectionIndex(int index)
@@ -361,18 +426,21 @@ public class NavigateAbleItemsViewer : ItemsControl
 
     public void Navigate(NavigationDirection direction)
     {
-        if (ItemCount == 0) return;
-
-        if (direction == NavigationDirection.First)
+        if (ItemCount is 0)
         {
-            UpdateSelectionIndex(0);
             return;
         }
 
-        if (direction == NavigationDirection.Last)
+        switch (direction)
         {
-            UpdateSelectionIndex(ItemCount - 1);
-            return;
+            case NavigationDirection.First:
+                UpdateSelectionIndex(0);
+                ScrollItemIntoView(0);
+                return;
+            case NavigationDirection.Last:
+                UpdateSelectionIndex(ItemCount - 1);
+                ScrollItemIntoView(ItemCount - 1);
+                return;
         }
 
         var startIndex = SelectedItemIndex == -1 ? CurrentItemIndex : SelectedItemIndex;
@@ -380,7 +448,10 @@ public class NavigateAbleItemsViewer : ItemsControl
         if (startIndex >= ItemCount) startIndex = ItemCount - 1;
 
         var items = GetItemPositions();
-        if (items.Count == 0) return;
+        if (items.Count is 0)
+        {
+            return;
+        }
 
         if (items.All(x => x.Index != startIndex))
         {
@@ -391,18 +462,23 @@ public class NavigateAbleItemsViewer : ItemsControl
 
         var targetItem = direction switch
         {
-            NavigationDirection.Up => GetClosestItemAbove(currentItemPos, items),
-            NavigationDirection.Down => GetClosestItemBelow(currentItemPos, items),
+            // If there's no item directly above, wrap to the bottom of the previous column
+            NavigationDirection.Up => GetClosestItemAbove(currentItemPos, items) ?? GetBottomItemInPreviousColumn(currentItemPos, items),
+        
+            // If there's no item directly below, wrap to the top of the next column
+            NavigationDirection.Down => GetClosestItemBelow(currentItemPos, items) ?? GetTopItemInNextColumn(currentItemPos, items),
+        
             NavigationDirection.Left => GetClosestItemLeft(currentItemPos, items),
             NavigationDirection.Right => GetClosestItemRight(currentItemPos, items),
             _ => null
         };
 
-        if (targetItem is not { } validItem || validItem.Index >= items.Count)
+        // FIX: Check against the total ItemCount, and prevent redundant navigation
+        if (targetItem is not { } validItem || validItem.Index >= ItemCount || validItem.Index == startIndex)
         {
             return;
         }
-            
+        
         switch (direction)
         {                
             case NavigationDirection.Left:
@@ -446,32 +522,25 @@ public class NavigateAbleItemsViewer : ItemsControl
             default: return;
         }
         
-        ContainerFromIndex(SelectedItemIndex)?.BringIntoView();
+        ScrollItemIntoView(SelectedItemIndex);
     }
 
     private List<ItemPosition> GetItemPositions()
     {
-        var list = new List<ItemPosition>(ItemCount);
-        
-        for (var i = 0; i < ItemCount; i++)
+        var list = new List<ItemPosition>();
+
+        if (ItemsPanelRoot is VirtualizingGallery gallery)
         {
-            var container = ContainerFromIndex(i);
-            if (container is not { IsVisible: true })
+            for (var i = 0; i < ItemCount; i++)
             {
-                continue;
-            }
-                
-            var position = container.TranslatePoint(new Point(0, 0), this);
-            if (position.HasValue)
-            {
-                list.Add(new ItemPosition
+                var bounds = gallery.GetItemBounds(i);
+                if (bounds.HasValue)
                 {
-                    Index = i,
-                    Position = position.Value,
-                    Size = container.Bounds.Size
-                });
+                    list.Add(new ItemPosition(i, bounds.Value.Position, bounds.Value.Size));
+                }
             }
         }
+
         return list;
     }
 

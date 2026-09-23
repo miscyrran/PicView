@@ -239,6 +239,13 @@ public static class QuickLoad
                         }
                         mainWindow.Show();
                         mainWindow.SetLayoutSizeAndVisibility(mainWindow.Bounds.Width);
+                        if (Settings.WindowProperties.AutoFit)
+                        {
+                            Dispatcher.UIThread.Post(() =>
+                            {
+                                mainWindow.Width = mainWindow.Height = double.NaN;
+                            }, DispatcherPriority.Render);
+                        }
                     }, DispatcherPriority.Loaded);
                 }
             }
@@ -299,19 +306,35 @@ public static class QuickLoad
         }
 
         vm.IsLoadingIndicatorShown.Value = false;
-        tab.UpdateTabTitle();
+        
+        if (Settings.WindowProperties.AutoFit && OperatingSystem.IsMacOS())
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                WindowFunctions.CenterWindowOnScreen(mainWindow);
+            }, DispatcherPriority.Render);
+        }
+        
         ShowHoverBarIfNeeded(core);
         if (Settings.UIProperties.IsTaskbarProgressEnabled)
         {
             core.PlatformService.SetTaskbarProgress((ulong)tab.ImageIterator.CurrentIndex, (ulong)tab.ImageIterator.Files.Count);
         }
         
-        FileHistoryManager.Add(fileInfo.FullName);
-
         if (isGalleryEnabled)
         {
             await LoadGallery(core).ConfigureAwait(false);
+            Dispatcher.UIThread.Invoke(() =>
+            {
+                if (tab.CurrentView.CurrentValue is ImageViewer imageViewer)
+                {
+                    imageViewer.GalleryView.GalleryItemsControl.CurrentItemIndex = tab.NavigationIndex.Value;
+                    imageViewer.GalleryView.GalleryItemsControl.ScrollToCenterOfCurrentItem();
+                }
+            }, DispatcherPriority.Loaded);
         }
+        
+        FileHistoryManager.Add(fileInfo.FullName);
         
         if (continueFromLeftOff)
         {

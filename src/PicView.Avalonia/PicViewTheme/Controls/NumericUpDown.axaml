@@ -3,8 +3,8 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ControlTheme TargetType="NumericUpDown" x:Key="{x:Type NumericUpDown}">
-        <Setter Property="Background" Value="{DynamicResource MainBackgroundColor}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource MainBorderColor}" />
+        <Setter Property="Background" Value="{DynamicResource ToolWindowButtonBackground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ToolWindowButtonBorderColor}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="4" />
         <Setter Property="Template">
@@ -36,12 +36,12 @@
                             MinWidth="20"
                             Name="PART_TextBox"
                             Padding="{TemplateBinding Padding}"
+                            PlaceholderText="{TemplateBinding PlaceholderText}"
                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
                             Text="{TemplateBinding Text}"
                             TextAlignment="{TemplateBinding TextAlignment}"
                             TextWrapping="NoWrap"
-                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
-                            Watermark="{TemplateBinding Watermark}" />
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
                     </ButtonSpinner>
                 </DataValidationErrors>
             </ControlTemplate>

@@ -1,4 +1,5 @@
-﻿using PicView.Core.DebugTools;
+﻿using PicView.Core.Conversion;
+using PicView.Core.DebugTools;
 using PicView.Core.ViewModels;
 
 namespace PicView.Avalonia.ImageHandling;
@@ -15,7 +16,7 @@ public static class ImageOptimizer
     public static async Task OptimizeImageAsync(MainWindowViewModel vm)
     {
         var tab = vm.WindowTabs.ActiveTab.CurrentValue;
-        if (tab.FileInfo?.CurrentValue is null || !tab.CanNavigateBackwards.Value || !tab.CanNavigateForwards.Value)
+        if (ConversionHelper.DetermineIfOptimizeImageShouldBeEnabled(tab.FileInfo?.CurrentValue))
         {
             return;
         }
@@ -36,8 +37,9 @@ public static class ImageOptimizer
             {
                 DebugHelper.LogDebug(nameof(ImageOptimizer), nameof(OptimizeImageAsync), ex);
             }
-        });
-        await tab.ImageIterator.ReloadAsync();
+        }).ConfigureAwait(false);
+        tab.ImageIterator.Cache.DeleteFromCache(tab.FileInfo.CurrentValue.FullName);
+        await tab.ImageIterator.ReloadAsync(clearCache:false).ConfigureAwait(false);
         vm.IsLoadingIndicatorShown.Value = false;
         
         // TODO: have to create a new loading view, that blocks navigation until finished. With a cancel button.

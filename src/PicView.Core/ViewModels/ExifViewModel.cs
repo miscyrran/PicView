@@ -332,6 +332,15 @@ public class ExifViewModel : IDisposable
 
     public BindableReactiveProperty<MagickFormat?> ImageFormat { get; } = new();
 
+    /// <summary>Whether the current image carries a motion photo video.</summary>
+    public BindableReactiveProperty<bool> IsMotionPhoto { get; } = new();
+
+    /// <summary>
+    /// The image format name for display, with a localized " (Motion Photo)" suffix
+    /// appended when the image carries a motion photo video.
+    /// </summary>
+    public BindableReactiveProperty<string?> ImageFormatDisplay { get; } = new();
+
     public void Dispose()
     {
         Disposable.Dispose(
@@ -366,6 +375,7 @@ public class ExifViewModel : IDisposable
             FocalLength,
             FocalLength35Mm,
             GoogleLink,
+            ImageFormatDisplay,
             ISOSpeed,
             IsExifAvailable,
             IsSdMetadataAvailable,
@@ -376,6 +386,7 @@ public class ExifViewModel : IDisposable
             SdRaw,
             SdStorage,
             IsSdStealthScanning,
+            IsMotionPhoto,
             Latitude,
             LensMaker,
             LensModel,
@@ -441,6 +452,45 @@ public class ExifViewModel : IDisposable
 
     private FileInfo? _fileInfo;
 
+    /// <summary>
+    /// Rebuilds <see cref="ImageFormatDisplay"/> from the current format, appending the
+    /// localized " (Motion Photo)" suffix when the image carries a motion photo video.
+    /// </summary>
+    internal void UpdateImageFormatDisplay()
+    {
+        var imageFormat = ImageFormat.CurrentValue;
+        if (imageFormat is null)
+        {
+            ImageFormatDisplay.Value = null;
+            return;
+        }
+
+        Span<char> formatBuffer = stackalloc char[64];
+        if (!Enum.TryFormat(imageFormat.Value, formatBuffer, out var formatLength))
+        {
+            ImageFormatDisplay.Value = null;
+            return;
+        }
+
+        var marker = TranslationManager.Translation.MotionPhoto;
+        if (IsMotionPhoto.CurrentValue && !string.IsNullOrEmpty(marker))
+        {
+            var requiredLength = formatLength + 3 + marker.Length;
+            ImageFormatDisplay.Value = string.Create(requiredLength, (imageFormat.Value, formatLength, marker), static (destination, state) =>
+            {
+                Enum.TryFormat(state.Value, destination[..state.formatLength], out _);
+                destination[state.formatLength] = ' ';
+                destination[state.formatLength + 1] = '(';
+                state.marker.AsSpan().CopyTo(destination[(state.formatLength + 2)..]);
+                destination[^1] = ')';
+            });
+        }
+        else
+        {
+            ImageFormatDisplay.Value = new string(formatBuffer[..formatLength]);
+        }
+    }
+
 #pragma warning disable MA0051
     public void UpdateExifValues(ImageModel model, MagickImage? magick = null)
 #pragma warning restore MA0051
@@ -452,6 +502,7 @@ public class ExifViewModel : IDisposable
 
         var pixelWidth = PixelWidth.Value = model.PixelWidth;
         var pixelHeight = PixelHeight.Value = model.PixelHeight;
+        IsMotionPhoto.Value = model.MotionPhoto is not null;
         try
         {
             if (fileInfo is null || !fileInfo.Exists)
@@ -728,6 +779,7 @@ public class ExifViewModel : IDisposable
             };
 
             ImageFormat.Value = magick.Format;
+            UpdateImageFormatDisplay();
 
             var meter = TranslationManager.Translation.Meter;
 
